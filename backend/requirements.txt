@@ -1,0 +1,6 @@
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+sqlmodel==0.0.22
+pydantic-settings==2.8.1
+alembic==1.14.1
+summa==1.2.0
