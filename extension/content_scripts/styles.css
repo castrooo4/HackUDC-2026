@@ -1,0 +1,42 @@
+/* Definimos nuestra propia zona interactiva */
+.kelea-hover-zone {
+  position: relative !important;
+}
+
+.kelea-save-btn {
+  position: absolute !important;
+  top: 105px !important;
+  /* Lo bajamos para no tapar los botones de YouTube */
+  right: 10px !important;
+  z-index: 9999 !important;
+
+  /* Diseño elegante */
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 18px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  /* Oculto por defecto */
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s ease, transform 0.1s ease !important;
+}
+
+/* Mostrar el botón SOLO cuando el ratón pasa por nuestra zona interactiva */
+.kelea-hover-zone:hover .kelea-save-btn {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Efecto al pasar el ratón por el propio botón */
+.kelea-save-btn:hover {
+  transform: scale(1.15) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
+}

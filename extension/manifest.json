@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Remit - Cerebro Digital",
+  "version": "1.0.0",
+  "description": "Captura rápida de URLs desde YouTube, Google y PDFs directo a tu inbox único.",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.google.com/*",
+    "*://*.google.es/*",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content_scripts/youtube.js"
+      ],
+      "css": [
+        "content_scripts/styles.css"
+      ]
+    },
+    {
+      "matches": [
+        "*://*.google.com/*",
+        "*://*.google.es/*"
+      ],
+      "js": [
+        "content_scripts/google.js"
+      ],
+      "css": [
+        "content_scripts/styles.css"
+      ]
+    }
+  ],
+  "action": {
+    "default_title": "Guardar pestaña actual en tu second brain"
+  }
+}
