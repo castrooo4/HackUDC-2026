@@ -62,3 +62,14 @@ body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; 
     margin-left: 0;
   }
 }
+
+/* Para Chrome, Safari y nuevas versiones de Edge */
+.sidebar-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Para Firefox */
+.sidebar-container {
+  scrollbar-width: none;
+  -ms-overflow-style: none; /* IE y Edge antiguo */
+}

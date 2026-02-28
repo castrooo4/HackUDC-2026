@@ -126,9 +126,20 @@ const activeLinkStyle = {
 
 // --- ESTILOS ---
 const sidebarStyle = {
-  width: "240px", height: "100vh", position: "fixed", left: 0, top: 0,
-  background: "var(--card-bg)", borderRight: "1px solid rgba(70, 211, 126, 0.2)",
-  padding: "40px 20px", zIndex: 100, overflowY: "auto"
+  width: "240px", 
+  height: "100vh", 
+  position: "fixed", 
+  left: 0, 
+  top: 0,
+  background: "var(--card-bg)", 
+  borderRight: "1px solid rgba(70, 211, 126, 0.2)",
+  padding: "40px 20px", 
+  zIndex: 100, 
+  overflowY: "auto", // Mantenlo en auto para que funcione el scroll
+  
+  // Añade estas líneas para ocultar la barra si usas estilos en línea
+  scrollbarWidth: "none", // Firefox
+  msOverflowStyle: "none", // IE
 };
 
 const logoStyle = { color: "var(--neon)", fontWeight: "800", fontSize: "24px", marginBottom: "40px", textAlign: "center" };

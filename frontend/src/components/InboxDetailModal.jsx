@@ -2,6 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { deleteInboxItem, updateInboxItem, getDirectoriesTree } from "../api/inbox";
 
+import { 
+  X, ExternalLink, Calendar, Folder, 
+  Trash2, Edit3, Youtube, Globe, 
+  FileText, ImageIcon, Brain, Check, RotateCcw 
+} from "lucide-react";
+
 export default function InboxDetailModal({ open, item, loading, error, onClose }) {
   const [directories, setDirectories] = useState([]);
   const [isEditingCategory, setIsEditingCategory] = useState(false);
@@ -41,13 +47,13 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
 
   const getTypeConfig = (type) => {
     const types = {
-      YOUTUBE: { icon: "🎥", color: "#ff4444", label: "YouTube" },
-      WEB: { icon: "🌐", color: "#2196F3", label: "Web" },
-      IMAGE: { icon: "🖼️", color: "#9C27B0", label: "Imagen" },
-      PDF: { icon: "📄", color: "#FF9800", label: "PDF" },
-      TEXT: { icon: "📝", color: "#4CAF50", label: "Texto" }
+      YOUTUBE: { icon: <Youtube size={16} />, color: "#ff4444", label: "YouTube" },
+      WEB: { icon: <Globe size={16} />, color: "#2196F3", label: "Web" },
+      IMAGE: { icon: <ImageIcon size={16} />, color: "#9C27B0", label: "Imagen" },
+      PDF: { icon: <FileText size={16} />, color: "#FF9800", label: "PDF" },
+      TEXT: { icon: <Edit3 size={16} />, color: "#4CAF50", label: "Texto" }
     };
-    return types[type] || { icon: "🧠", color: "#46d37e", label: type };
+    return types[type] || { icon: <Brain size={16} />, color: "var(--neon)", label: type };
   };
 
   const typeConfig = item ? getTypeConfig(item.item_type) : null;
@@ -108,9 +114,12 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
       <div onMouseDown={(e) => e.stopPropagation()} style={modalStyle}>
 
         {/* CABECERA */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 15 }}>
-          <b style={{ color: "var(--neon)", fontSize: "1.2rem" }}>Detalle del Elemento</b>
-          <button onClick={onClose} style={iconBtn}>✕</button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Brain style={{ color: "var(--neon)" }} size={24} />
+            <b style={{ color: "var(--neon)", fontSize: "1.2rem", letterSpacing: '1px' }}>MEMORIA DIGITAL</b>
+          </div>
+          <button onClick={onClose} style={iconBtn}><X size={20} /></button>
         </div>
 
         {loading ? (
@@ -130,25 +139,28 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
 
             <h2 style={titleStyle}>{item.title || "Elemento sin título"}</h2>
 
-            {/* BADGES INFORMATIVOS */}
+            {/* BADGES CON ICONOS LUCIDE */}
             <div style={badgesContainerStyle}>
-              <span style={{ ...badgeStyle, border: `1px solid ${typeConfig.color}`, color: typeConfig.color }}>
-                {typeConfig.icon} {typeConfig.label}
+              <span style={{ ...badgeStyle, borderColor: typeConfig.color, color: typeConfig.color }}>
+                {typeConfig.icon} <span>{typeConfig.label}</span>
               </span>
-              <span style={badgeStyle}>⏱️ {formatDate(item.created_at)}</span>
-              <span style={{ ...badgeStyle, background: "rgba(70, 211, 126, 0.15)", color: "var(--neon)", border: "1px solid var(--neon)" }}>
-                📂 {currentCategoryName}
+              <span style={badgeStyle}>
+                <Calendar size={14} /> <span>{formatDate(item.created_at)}</span>
+              </span>
+              <span style={{ ...badgeStyle, borderColor: 'var(--neon)', color: 'var(--neon)', background: 'rgba(70, 211, 126, 0.05)' }}>
+                <Folder size={14} /> <span>{currentCategoryName}</span>
               </span>
             </div>
 
             {item.url && (
               <a href={item.url} target="_blank" rel="noopener noreferrer" style={urlButtonStyle}>
-                🔗 VISITAR ENLACE ORIGINAL
+                <ExternalLink size={18} /> VISITAR ENLACE ORIGINAL
               </a>
             )}
 
             {item.content && (
               <div style={{ marginTop: "20px" }}>
+                <div style={contentLabelStyle}>CONTENIDO EXTRAÍDO</div>
                 <pre style={preStyle}>{item.content}</pre>
               </div>
             )}
@@ -166,18 +178,22 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
                       <option key={dir.id} value={dir.id}>{dir.name}</option>
                     ))}
                   </select>
-                  <button onClick={handleSaveCategory} disabled={actionLoading} style={saveBtnStyle}>
-                    {actionLoading ? "Guardando..." : "✅ Confirmar"}
-                  </button>
-                  <button onClick={() => setIsEditingCategory(false)} style={cancelBtnStyle}>Cancelar</button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={handleSaveCategory} disabled={actionLoading} style={saveBtnStyle}>
+                      <Check size={18} /> {actionLoading ? "..." : "Confirmar"}
+                    </button>
+                    <button onClick={() => setIsEditingCategory(false)} style={cancelBtnStyle}>
+                       <RotateCcw size={18} />
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
                   <button onClick={handleModifyCategoryClick} style={editBtnStyle}>
-                    ✏️ Cambiar de Carpeta
+                    <Folder size={18} /> Mover de Carpeta
                   </button>
                   <button onClick={handleDelete} disabled={actionLoading} style={deleteBtnStyle}>
-                    {actionLoading ? "Borrando..." : "🗑️ Eliminar"}
+                    <Trash2 size={18} /> {actionLoading ? "Borrando..." : "Eliminar de la memoria"}
                   </button>
                 </div>
               )}
@@ -190,34 +206,122 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
   );
 }
 
-// --- ESTILOS ---
+// --- ESTILOS MEJORADOS ---
 const backdropStyle = {
-  position: "fixed", inset: 0, background: "rgba(0,0,0,.7)",
-  backdropFilter: "blur(4px)", display: "flex", alignItems: "center",
+  position: "fixed", inset: 0, background: "rgba(0,0,0,.8)",
+  backdropFilter: "blur(8px)", display: "flex", alignItems: "center",
   justifyContent: "center", padding: 20, zIndex: 100000
 };
 
 const modalStyle = {
-  width: "min(700px, 100%)", maxHeight: "90vh", borderRadius: 26,
-  border: "2px solid rgba(70,211,126,.45)", background: "rgba(10,16,12,.95)",
-  padding: 24, display: "flex", flexDirection: "column", boxShadow: "0 10px 40px rgba(0,0,0,0.5)"
+  width: "min(750px, 100%)", maxHeight: "90vh", borderRadius: 30,
+  border: "2px solid rgba(70,211,126,.3)", background: "rgba(10,16,12,.98)",
+  padding: 30, display: "flex", flexDirection: "column", boxShadow: "0 20px 50px rgba(0,0,0,0.6)"
 };
 
-const contentContainerStyle = { overflowY: "auto", paddingRight: "10px", scrollbarWidth: "thin", scrollbarColor: "rgba(70, 211, 126, 0.5) transparent" };
-const iconBtn = { borderRadius: "50%", border: "1px solid rgba(70,211,126,.25)", background: "rgba(18,26,20,.35)", color: "white", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s" };
-const largeImageStyle = { width: "100%", maxHeight: "300px", objectFit: "cover", borderRadius: "16px", marginBottom: "20px", border: "1px solid rgba(255,255,255,0.1)" };
-const titleStyle = { margin: "0 0 15px 0", fontSize: "1.8rem", color: "white", lineHeight: "1.3" };
-const badgesContainerStyle = { display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "20px" };
-const badgeStyle = { padding: "6px 12px", borderRadius: "20px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.8)", display: "flex", alignItems: "center", gap: "5px" };
-const urlButtonStyle = { display: "block", width: "100%", padding: "15px", background: "rgba(70, 211, 126, 0.1)", border: "1px solid var(--neon)", borderRadius: "12px", color: "var(--neon)", textAlign: "center", textDecoration: "none", fontWeight: "bold", fontSize: "1rem", letterSpacing: "1px", transition: "all 0.2s", cursor: "pointer" };
-const preStyle = { borderRadius: 16, border: "1px solid rgba(70,211,126,.18)", background: "rgba(0,0,0,.4)", padding: 18, whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: "1rem", lineHeight: "1.6", color: "rgba(255,255,255,0.9)", margin: 0 };
+const contentContainerStyle = { 
+  overflowY: "auto", 
+  paddingRight: "15px",
+  scrollbarWidth: "thin",
+  scrollbarColor: "var(--neon) transparent"
+};
 
-// Nuevos estilos de botones inferiores
-const actionZoneStyle = { marginTop: "20px", paddingTop: "20px", borderTop: "1px dashed rgba(255,255,255,0.1)" };
-const editBtnStyle = { flex: 1, padding: "12px", borderRadius: "12px", background: "rgba(33, 150, 243, 0.1)", border: "1px solid #2196F3", color: "#2196F3", fontWeight: "bold", cursor: "pointer" };
-const deleteBtnStyle = { flex: 1, padding: "12px", borderRadius: "12px", background: "rgba(244, 67, 54, 0.1)", border: "1px solid #f44336", color: "#f44336", fontWeight: "bold", cursor: "pointer" };
+const iconBtn = { 
+  borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)", 
+  background: "rgba(255,255,255,0.05)", color: "white", 
+  width: "40px", height: "40px", display: "flex", alignItems: "center", 
+  justifyContent: "center", cursor: "pointer", transition: "all 0.2s" 
+};
 
-const editCategoryBoxStyle = { display: "flex", gap: "10px", alignItems: "center", background: "rgba(255,255,255,0.05)", padding: "15px", borderRadius: "16px" };
-const selectStyle = { flex: 1, padding: "10px", borderRadius: "8px", background: "rgba(0,0,0,0.5)", color: "white", border: "1px solid rgba(255,255,255,0.2)" };
-const saveBtnStyle = { padding: "10px 15px", borderRadius: "8px", background: "var(--neon)", border: "none", color: "black", fontWeight: "bold", cursor: "pointer" };
-const cancelBtnStyle = { padding: "10px 15px", borderRadius: "8px", background: "transparent", border: "1px solid rgba(255,255,255,0.3)", color: "white", cursor: "pointer" };
+const largeImageStyle = { 
+  width: "100%", maxHeight: "350px", objectFit: "cover", 
+  borderRadius: "20px", marginBottom: "25px", border: "1px solid rgba(70, 211, 126, 0.2)" 
+};
+
+const titleStyle = { 
+  margin: "0 0 20px 0", fontSize: "1.8rem", color: "white", 
+  lineHeight: "1.2", fontWeight: "800", wordBreak: 'break-word' 
+};
+
+const badgesContainerStyle = { display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "25px" };
+
+const badgeStyle = { 
+  padding: "8px 14px", borderRadius: "12px", 
+  background: "rgba(255, 255, 255, 0.03)", 
+  border: "1px solid rgba(255, 255, 255, 0.1)", 
+  fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.8)", 
+  display: "flex", alignItems: "center", gap: "8px",
+  fontWeight: "600"
+};
+
+const urlButtonStyle = { 
+  display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+  width: "100%", padding: "16px", background: "rgba(70, 211, 126, 0.1)", 
+  border: "1px solid var(--neon)", borderRadius: "16px", color: "var(--neon)", 
+  textDecoration: "none", fontWeight: "bold", fontSize: "0.9rem", 
+  letterSpacing: "1px", transition: "all 0.3s", cursor: "pointer" 
+};
+
+const contentLabelStyle = {
+  fontSize: '0.7rem', color: 'var(--neon)', fontWeight: 'bold', 
+  letterSpacing: '2px', marginBottom: '8px', opacity: 0.8
+};
+
+const preStyle = { 
+  borderRadius: 20, border: "1px solid rgba(255,255,255,0.05)", 
+  background: "rgba(0,0,0,0.3)", padding: 20, whiteSpace: "pre-wrap", 
+  fontFamily: "inherit", fontSize: "0.95rem", lineHeight: "1.6", 
+  color: "rgba(215, 239, 224, 0.9)", margin: 0 
+};
+
+const actionZoneStyle = { 
+  marginTop: "30px", paddingTop: "20px", 
+  borderTop: "1px dashed rgba(70, 211, 126, 0.2)" 
+};
+
+const errorStyle = { 
+  color: "#ff9393", padding: "20px", background: "rgba(255,90,90,0.1)", 
+  borderRadius: "16px", border: "1px solid rgba(255,90,90,0.2)" 
+};
+
+const editBtnStyle = { 
+  flex: 1, padding: "14px", borderRadius: "14px", background: "rgba(33, 150, 243, 0.1)", 
+  border: "1px solid #2196F3", color: "#2196F3", fontWeight: "bold", 
+  cursor: "pointer", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' 
+};
+
+const deleteBtnStyle = { 
+  flex: 1, padding: "14px", borderRadius: "14px", background: "rgba(255, 90, 90, 0.05)", 
+  border: "1px solid #ff5a5a", color: "#ff5a5a", fontWeight: "bold", 
+  cursor: "pointer", display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' 
+};
+
+const editCategoryBoxStyle = { 
+  display: "flex", gap: "10px", alignItems: "center", 
+  background: "rgba(70,211,126,0.05)", padding: "12px", borderRadius: "18px",
+  border: "1px solid rgba(70,211,126,0.1)"
+};
+
+const selectStyle = { 
+  flex: 1, 
+  padding: "12px", 
+  borderRadius: "10px", 
+  background: "rgba(0,0,0,0.8)", // Fondo más oscuro para que resalte el neón
+  color: "var(--neon)", // Texto en verde neón
+  border: "1px solid rgba(70, 211, 126, 0.3)", 
+  outline: 'none',
+  appearance: 'none', // Quita la flecha por defecto en algunos navegadores
+  cursor: 'pointer',
+  fontSize: '0.95rem'
+};
+
+const saveBtnStyle = { 
+  padding: "12px 20px", borderRadius: "10px", background: "var(--neon)", 
+  border: "none", color: "black", fontWeight: "bold", cursor: "pointer",
+  display: 'flex', alignItems: 'center', gap: '8px'
+};
+
+const cancelBtnStyle = { 
+  padding: "12px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", 
+  border: "1px solid rgba(255,255,255,0.1)", color: "white", cursor: "pointer" 
+};
