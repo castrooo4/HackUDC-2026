@@ -1,36 +1,36 @@
 // --- 1. FUNCIÓN CENTRAL PARA ENVIAR AL BACKEND ---
 async function sendToRemitBackend(payload) {
-  // 1. Recuperamos el token de storage
   const data = await chrome.storage.local.get(['access_token']);
   const token = data.access_token;
 
+  // --- LA MAGIA DEL AVISO VISUAL ---
   if (!token) {
-    console.error("Remit: No hay token. Usuario no logueado.");
-    // Opcional: Avisar al usuario que debe loguearse
-    return;
+    console.warn("Remit: Intento de guardado sin iniciar sesión.");
+
+    // Buscamos la pestaña donde está el usuario y le disparamos el Toast rojo
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "SHOW_TOAST",
+          message: "⚠️ Inicia sesión en Remit para guardar",
+          type: "error" // Indicamos que use el estilo rojo
+        });
+      }
+    });
+    return; // Detenemos la ejecución para que no haga el fetch
   }
 
+  // ... (Aquí sigue tu código normal del fetch con el Authorization: Bearer) ...
   fetch("http://127.0.0.1:8000/inbox", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}` // <--- TOKEN AÑADIDO
+      "Authorization": `Bearer ${token}`
     },
     body: JSON.stringify(payload)
   })
-    .then(response => {
-      if (response.ok) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: "SHOW_TOAST", message: "¡Guardado en Remit!" });
-        });
-      } else if (response.status === 401) {
-        console.error("Remit: Token expirado o inválido.");
-        chrome.storage.local.remove(['access_token']);
-      }
-    })
-    .catch(err => console.error("Error Remit:", err));
+  // ... resto del fetch ...
 }
-
 // --- 2. FUNCIÓN MÁGICA PARA CONVERTIR A BASE64 ---
 async function urlToBase64(url) {
   try {

@@ -185,3 +185,10 @@
 .remit-universal-widget:hover .remit-widget-text {
   display: inline-block !important;
 }
+
+/* Variante roja para errores de autenticación */
+.remit-toast-error {
+  background-color: #f44336 !important;
+  /* Rojo alerta */
+  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4) !important;
+}

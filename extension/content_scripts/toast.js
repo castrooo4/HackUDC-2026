@@ -1,4 +1,4 @@
-function showRemitToast(message) {
+function showRemitToast(message, type = "success") {
   // Si el usuario guarda muy rápido, borramos el mensaje anterior para no apilarlos
   const existing = document.getElementById('remit-toast-container');
   if (existing) existing.remove();
@@ -6,7 +6,16 @@ function showRemitToast(message) {
   const toast = document.createElement('div');
   toast.id = 'remit-toast-container';
   toast.className = 'remit-toast';
-  toast.innerHTML = `🧠 ${message}`;
+
+  // Magia nueva: Si el background nos dice que es un error, le ponemos la clase roja
+  if (type === "error") {
+    toast.classList.add('remit-toast-error');
+    // Usamos el mensaje tal cual (que ya incluye el icono ⚠️ del background)
+    toast.innerHTML = message;
+  } else {
+    // Si es éxito normal, le ponemos el cerebro
+    toast.innerHTML = `🧠 ${message}`;
+  }
 
   document.body.appendChild(toast);
 
@@ -25,6 +34,7 @@ function showRemitToast(message) {
 // Quedamos a la espera de que el background nos dé la orden de mostrar el aviso
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "SHOW_TOAST") {
-    showRemitToast(request.message);
+    // Le pasamos a la función tanto el mensaje como el tipo (error o éxito)
+    showRemitToast(request.message, request.type);
   }
 });
