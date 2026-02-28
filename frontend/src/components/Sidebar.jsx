@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getDirectoriesTree } from "../api/inbox";
+import { Home, Sparkles, Folder, ChevronDown } from "lucide-react";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -44,19 +45,33 @@ export default function Sidebar() {
     <div style={sidebarStyle}>
       <div style={logoStyle}>BRAIN</div>
       <nav style={navStyle}>
+        
+        {/* Enlace Principal */}
         <Link to="/" style={location.pathname === "/" ? activeLinkStyle : linkStyle}>
-          🏠 Principal
+          <Home size={20} /> 
+          <span>Principal</span>
         </Link>
+
+        {/* Enlace Novedades */}
         <Link to="/novedades" style={location.pathname === "/novedades" ? activeLinkStyle : linkStyle}>
-          ✨ Novedades
+          <Sparkles size={20} /> 
+          <span>Novedades</span>
         </Link>
 
         {/* EL BOTÓN DESPLEGABLE DE CARPETAS */}
-        <div style={folderToggleStyle} onClick={handleToggleFolders}>
+        <div style={{ ...folderToggleStyle, cursor: 'pointer' }} onClick={handleToggleFolders}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>📁 Carpetas</span>
-            <span style={{ fontSize: '0.8rem', transform: foldersOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>
-              ▼
+            <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Folder size={20} /> 
+              <span>Carpetas</span>
+            </span>
+            <span style={{ 
+              display: 'flex',
+              transform: foldersOpen ? 'rotate(180deg)' : 'rotate(0deg)', 
+              transition: 'transform 0.3s',
+              opacity: 0.5 
+            }}>
+              <ChevronDown size={16} />
             </span>
           </div>
         </div>
@@ -86,6 +101,26 @@ export default function Sidebar() {
   );
 }
 
+// Actualiza linkStyle para alinear iconos y texto
+const linkStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px", // Espacio entre icono y texto
+  color: "var(--text)",
+  textDecoration: "none",
+  padding: "12px 16px",
+  borderRadius: "16px",
+  transition: "all 0.3s",
+  fontSize: "0.95rem"
+};
+
+const activeLinkStyle = {
+  ...linkStyle,
+  background: "rgba(70, 211, 126, 0.1)", // Color de fondo suave
+  color: "var(--neon)",
+  fontWeight: "600"
+};
+
 // --- ESTILOS ---
 const sidebarStyle = {
   width: "240px", height: "100vh", position: "fixed", left: 0, top: 0,
@@ -96,6 +131,7 @@ const sidebarStyle = {
 const logoStyle = { color: "var(--neon)", fontWeight: "800", fontSize: "24px", marginBottom: "40px", textAlign: "center" };
 const navStyle = { display: "flex", flexDirection: "column", gap: "10px" };
 
+/*
 const linkStyle = {
   color: "var(--text)", textDecoration: "none", padding: "12px",
   borderRadius: "12px", transition: "all 0.3s"
@@ -105,6 +141,7 @@ const activeLinkStyle = {
   ...linkStyle, background: "rgba(70, 211, 126, 0.15)",
   color: "var(--neon)", fontWeight: "bold"
 };
+*/
 
 const folderToggleStyle = {
   ...linkStyle, cursor: "pointer", userSelect: "none"
