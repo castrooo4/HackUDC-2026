@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Remit</title>
+  <style>
+    body {
+      width: 320px;
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a1a;
+      color: #e8eaed;
+      margin: 0;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-size: 13px;
+      color: #aaa;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #2a2a2a;
+      color: white;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      /* Permite hacerlo más grande si la nota es larga */
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 15px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 13px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>🧠 Cerebro Remit</h2>
+
+  <label for="content">Que quieres guardar:</label>
+  <textarea id="content" rows="4" placeholder="Escribe tu nota o pega aquí una URL..."></textarea>
+
+  <button id="saveBtn">Enviar a Inbox</button>
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

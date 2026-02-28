@@ -24,9 +24,6 @@
       ],
       "js": [
         "content_scripts/youtube.js"
-      ],
-      "css": [
-        "content_scripts/styles.css"
       ]
     },
     {
@@ -36,13 +33,22 @@
       ],
       "js": [
         "content_scripts/google.js"
+      ]
+    },
+    {
+      "matches": [
+        "<all_urls>"
       ],
       "css": [
         "content_scripts/styles.css"
+      ],
+      "js": [
+        "content_scripts/toast.js"
       ]
     }
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_title": "Guardar pestaña actual en tu second brain"
   }
 }
