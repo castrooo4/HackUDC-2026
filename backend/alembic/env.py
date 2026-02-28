@@ -7,6 +7,8 @@ from sqlmodel import SQLModel
 from app.config import settings
 from app.models.directory import Directory  # noqa: F401
 from app.models.inbox_item import InboxItem  # noqa: F401
+from app.models.telegram_link import TelegramLink  # noqa: F401
+from app.models.telegram_link_code import TelegramLinkCode  # noqa: F401
 from app.models.user import User  # noqa: F401
 
 config = context.config
