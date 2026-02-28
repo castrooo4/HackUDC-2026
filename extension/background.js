@@ -1,8 +1,9 @@
 // --- 1. FUNCIÓN CENTRAL PARA ENVIAR AL BACKEND ---
 async function sendToRemitBackend(payload) {
-  const data = await chrome.storage.local.get(['access_token']);
+  const data = await chrome.storage.local.get(['access_token', 'use_location']);
   const token = data.access_token;
 
+  console.log("Memoria de Chrome dice -> Token existe:", !!token, "| Usar Ubicación:", data.use_location)
   // --- LA MAGIA DEL AVISO VISUAL (Si no hay sesión) ---
   if (!token) {
     console.warn("Remit: Intento de guardado sin iniciar sesión.");
@@ -17,7 +18,21 @@ async function sendToRemitBackend(payload) {
     });
     return;
   }
+  console.log("data.use_location", data.use_location);
+  if (data.use_location) {
+    try {
+      const locResp = await fetch('https://ipapi.co/json/');
+      const locData = await locResp.json();
+      if (locData.latitude && locData.longitude) {
+        payload.location_lat = locData.latitude;
+        payload.location_lon = locData.longitude;
+      }
+    } catch (error) {
+      console.warn("Remit: No se pudo obtener la ubicación por IP", error);
+    }
+  }
 
+  console.log("🚀 PAQUETE ENVIADO AL BACKEND:", payload)
   // --- PETICIÓN AL BACKEND ---
   fetch("http://127.0.0.1:8000/inbox", {
     method: "POST",

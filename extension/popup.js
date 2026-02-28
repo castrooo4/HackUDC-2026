@@ -125,55 +125,24 @@ document.getElementById('logoutBtn').onclick = async () => {
   document.getElementById('status').textContent = "Sesión cerrada";
   showView('authView');
 };
-// --- LÓGICA DEL INTERRUPTOR DE UBICACIÓN ---
+// --- LÓGICA DE UBICACIÓN ---
 const locToggle = document.getElementById('locationToggle');
 
-// 1. Al abrir el popup, miramos si el usuario lo tenía activado antes
+// 1. Al abrir, miramos si lo tenías encendido
 chrome.storage.local.get(['use_location'], (data) => {
-  locToggle.checked = !!data.use_location;
+  if (locToggle) locToggle.checked = !!data.use_location;
 });
 
-// 2. Función genérica para obtener coordenadas
-function getLocation() {
-  return new Promise((resolve) => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        (err) => resolve(null), // Si falla o deniega, devolvemos null
-        { timeout: 4000 }
-      );
-    } else {
-      resolve(null);
-    }
+// 2. Si lo tocas, simplemente guarda la preferencia
+if (locToggle) {
+  locToggle.addEventListener('change', (e) => {
+    chrome.storage.local.set({ use_location: e.target.checked });
+    document.getElementById('status').textContent = e.target.checked ? "✅ Ubicación activada" : "Ubicación desactivada";
   });
 }
 
-// 3. Cuando el usuario hace clic en el interruptor
-locToggle.addEventListener('change', async (e) => {
-  const status = document.getElementById('status');
-  if (e.target.checked) {
-    status.textContent = "📍 Solicitando permiso...";
-    const coords = await getLocation(); // Esto lanzará la ventanita de Chrome la primera vez
-
-    if (coords) {
-      chrome.storage.local.set({ use_location: true });
-      status.textContent = "✅ Ubicación activada";
-    } else {
-      // Si deniega el permiso, devolvemos el interruptor a OFF
-      e.target.checked = false;
-      chrome.storage.local.set({ use_location: false });
-      status.textContent = "❌ Permiso denegado";
-    }
-  } else {
-    chrome.storage.local.set({ use_location: false });
-    status.textContent = "Ubicación desactivada";
-  }
-});
-
-// --- BOTONES DE GUARDADO (Ahora comprueban el interruptor) ---
-
-// 1. Enviar Manual
-document.getElementById('saveBtn').addEventListener('click', async () => {
+// --- BOTONES DE GUARDADO ---
+document.getElementById('saveBtn').addEventListener('click', () => {
   const content = document.getElementById('content').value.trim();
   const status = document.getElementById('status');
 
@@ -182,59 +151,31 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     return;
   }
 
-  let payload = { source: "extension" };
-  let coords = null;
-
-  // Si el interruptor está ON, adjuntamos coordenadas en silencio
-  if (locToggle.checked) {
-    coords = await getLocation();
-    if (coords) {
-      payload.location_lat = coords.lat;
-      payload.location_lon = coords.lon;
-    }
-  }
+  status.textContent = "✅ Enviando...";
 
   if (content.startsWith('http')) {
-    chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: content, lat: coords?.lat, lon: coords?.lon });
+    chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: content });
   } else {
-    payload.item_type = "TEXT";
-    payload.content = content;
-    chrome.runtime.sendMessage({ action: "SAVE_MANUAL", payload: payload });
+    chrome.runtime.sendMessage({ action: "SAVE_MANUAL", payload: { source: "extension", item_type: "TEXT", content: content } });
   }
-
-  status.textContent = "✅ Enviado";
-  setTimeout(() => window.close(), 1000);
+  setTimeout(() => window.close(), 800);
 });
 
-// 2. Guardar Pestaña Actual
-document.getElementById('autoSaveBtn').addEventListener('click', async () => {
-  let coords = null;
-
-  if (locToggle.checked) {
-    coords = await getLocation();
-  }
-
+document.getElementById('autoSaveBtn').addEventListener('click', () => {
+  document.getElementById('status').textContent = "✅ Pestaña guardada";
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
-      chrome.runtime.sendMessage({
-        action: "SAVE_INBOX",
-        url: tabs[0].url,
-        lat: coords?.lat,
-        lon: coords?.lon
-      });
-      document.getElementById('status').textContent = "✅ Pestaña guardada";
-      setTimeout(() => window.close(), 1000);
+      chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: tabs[0].url });
+      setTimeout(() => window.close(), 800);
     }
   });
 });
 
-// 3. Recortar y Guardar
 document.getElementById('screenshotBtn').addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: "INIT_SCREENSHOT" });
   window.close();
 });
 
-// --- BOTÓN: ABRIR CEREBRO DIGITAL (WEB) ---
 document.getElementById('openWebBtn').addEventListener('click', () => {
   chrome.tabs.create({ url: "http://localhost:5173" });
   window.close();
