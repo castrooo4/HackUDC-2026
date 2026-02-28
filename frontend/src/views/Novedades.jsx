@@ -9,6 +9,27 @@ export default function Novedades({ onOpenDetail }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
+  const [isConfirmingAll, setIsConfirmingAll] = useState(false);
+
+  async function handleConfirmAll() {
+    if (!pendingItems.length) return;
+    if (!window.confirm(`¿Confirmar las ${pendingItems.length} sugerencias automáticamente?`)) return;
+
+    setIsConfirmingAll(true);
+    try {
+      // Ejecutamos todas las confirmaciones en paralelo
+      await Promise.all(
+        pendingItems.map(item => confirmOrganization(item.id, { type: "RECOMMENDED" }))
+      );
+      setPendingItems([]); // Limpiamos la lista una vez terminadas todas
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "Todo organizado con éxito", toastType: "success" }, "*");
+    } catch (err) {
+      alert(`Error al organizar algunos elementos: ${err.message}`);
+      fetchData(); // Refrescamos para ver qué quedó pendiente
+    } finally {
+      setIsConfirmingAll(false);
+    }
+  }
 
   useEffect(() => {
     fetchData();
@@ -91,7 +112,20 @@ export default function Novedades({ onOpenDetail }) {
           <Sparkles style={{ color: "var(--neon)" }} size={28} />
           <h2 style={{ margin: 0, color: "var(--neon)", letterSpacing: "1px" }}>BANDEJA DE CLASIFICACION</h2>
         </div>
-        <div style={badgeStyle}>{pendingItems.length} PENDIENTES</div>
+        {/* Contenedor de botones a la derecha */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div style={badgeStyle}>{pendingItems.length} PENDIENTES</div>
+          
+          {pendingItems.length > 0 && (
+            <button 
+              onClick={handleConfirmAll} 
+              disabled={isConfirmingAll}
+              style={confirmAllBtnStyle}
+            >
+              {isConfirmingAll ? "PROCESANDO..." : "CONFIRMAR TODO"}
+            </button>
+          )}
+        </div>
       </div>
 
       <p style={{ opacity: 0.7, marginBottom: "30px" }}>
@@ -342,4 +376,18 @@ const errorStyle = {
   background: "rgba(255,90,90,0.1)",
   borderRadius: "16px",
   border: "1px solid rgba(255,90,90,0.2)",
+};
+
+const confirmAllBtnStyle = {
+  background: "var(--neon)",
+  color: "#0b0f0d",
+  border: "none",
+  padding: "6px 16px",
+  borderRadius: "12px",
+  fontSize: "0.75rem",
+  fontWeight: "800",
+  cursor: "pointer",
+  letterSpacing: "1px",
+  transition: "all 0.2s",
+  opacity: 0.9,
 };
