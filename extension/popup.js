@@ -225,3 +225,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindSaveActions();
   bindEnterShortcuts();
 });
+
+document.getElementById('cameraBtn').addEventListener('click', () => {
+  chrome.tabs.create({ url: "camera.html" });
+  window.close();
+});
