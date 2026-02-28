@@ -48,6 +48,16 @@
         "content_scripts/screenshot.js"
       ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": [
+        "content_scripts/sync.js"
+      ],
+      "run_at": "document_start"
     }
   ],
   "action": {
