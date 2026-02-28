@@ -1,0 +1,48 @@
+services:
+  api:
+    image: ${BACKEND_IMAGE:-docker.io/minix16/remit-backend:main}
+    restart: unless-stopped
+    pull_policy: always
+    environment:
+      APP_NAME: ${APP_NAME:-Kelea Digital Brain - MVP}
+      API_PREFIX: ${API_PREFIX:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:3000,http://127.0.0.1:5173}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/kelea.db}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "${HOST_API_PORT:-8000}:8000"
+    volumes:
+      - remit_sqlite_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - remit
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-docker.io/minix16/remit-frontend:main}
+    restart: unless-stopped
+    pull_policy: always
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HOST_FRONTEND_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - remit
+
+volumes:
+  remit_sqlite_data:
+
+networks:
+  remit:

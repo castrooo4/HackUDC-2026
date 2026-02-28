@@ -1,25 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { health, listInbox, createInboxItem, getInboxItem } from "./api/inbox";
+import { logout } from "./api/auth"; // Importamos la función de limpieza
 import TopBar from "./components/TopBar.jsx";
-import NewInboxItemForm from "./components/NewInboxItemForm.jsx";
 import CardGrid from "./components/CardGrid";
 import InboxDetailModal from "./components/InboxDetailModal";
 import CreateItemModal from "./components/CreateItemModal";
 import ThemeSlider from "./components/ThemeSlider";
+import LoginForm from "./components/LoginForm.jsx";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
   const [items, setItems] = useState([]);
-
-  // src/App.jsx (Temporal para ver el diseño)
-  /*const [items, setItems] = useState([
-  { id: 1, title: "", content: "Crear una red social para mascotas", source: "Brainstorm" },
-  { id: 2, title: "Recordatorio", content: "Comprar leche y pan al salir del trabajo", source: "Tareas" },
-  { id: 3, title: "Proyecto React", content: "Terminar los estilos del Grid neón", source: "Dev" },
-  { id: 4, title: "Cita Médica", content: "Lunes a las 10:00 AM en el centro", source: "Salud" },
-  { id: 5, title: "Lectura", content: "Terminar el libro de Clean Code", source: "Libros" },
-  { id: 6, title: "Gimnasio", content: "Entrenamiento de pierna hoy", source: "Fitness" }
-]);*/
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState("");
 
@@ -30,6 +21,18 @@ export default function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [isLight, setIsLight] = useState(false);
 
+  // Estado de autenticación
+  const [token, setToken] = useState(localStorage.getItem("token"));
+
+  // 1. Efecto para cargar datos solo cuando hay token
+  useEffect(() => {
+    if (token) {
+      refreshHealth();
+      refreshList();
+    }
+  }, [token]);
+
+  // Funciones de API
   async function refreshHealth() {
     try {
       const res = await health();
@@ -52,30 +55,28 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    refreshHealth();
-    refreshList();
-  }, []);
+  // Lógica de sesión
+  const handleLoginSuccess = () => {
+    setToken(localStorage.getItem("token"));
+  };
 
-  /*
-  async function handleCreate(payload) {
-    await createInboxItem(payload);
-    await refreshList();
-  }
-    */
+  const handleLogout = () => {
+    logout(); // Borra localStorage
+    setToken(null); // Vuelve al estado de Login
+    setItems([]); // Limpia datos de la vista por seguridad
+  };
 
-  //Prueba
   async function handleCreate(payload) {
-  try {
-    const newItem = await createInboxItem(payload);
-    // Añadimos el nuevo ítem al final de la lista actual (...prev, newItem)
-    setItems(prev => [...prev, newItem]); 
-  } catch (e) {
-    // Si la API falla pero quieres verlo abajo en modo prueba:
-    const mockItem = { id: Date.now(), ...payload };
-    setItems(prev => [...prev, mockItem]);
+    try {
+      const newItem = await createInboxItem(payload);
+      setItems(prev => [newItem, ...prev]); 
+    } catch (e) {
+      console.error("Error al crear:", e);
+      // Opcional: Mock en caso de error de red para pruebas visuales
+      const mockItem = { id: Date.now(), ...payload, status: "PENDING", created_at: new Date().toISOString() };
+      setItems(prev => [mockItem, ...prev]);
+    }
   }
-}
 
   async function openDetail(id) {
     setDetailOpen(true);
@@ -92,6 +93,17 @@ export default function App() {
     }
   }
 
+  // RENDER CONDICIONAL: Login
+  if (!token) {
+    return (
+      <div className={`app ${isLight ? "light-mode" : ""}`}>
+        <div className="bg" />
+        <LoginForm onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
+
+  // RENDER: App Principal
   return (
     <div className={`app ${isLight ? "light-mode" : ""}`}>
       <div className="bg" />
@@ -99,24 +111,25 @@ export default function App() {
         <TopBar 
           healthOk={healthOk} 
           total={items.length} 
+          onLogout={handleLogout} // Nueva prop para cerrar sesión
           rightContent={
             <ThemeSlider isLight={isLight} onToggle={() => setIsLight(!isLight)} />
           }
         />
-        {/* El formulario ya no está aquí  */}
 
         {listError ? <div className="error">{listError}</div> : null}
+        
         {loadingList ? (
-          <div className="loading">Cargando…</div>
+          <div className="loading">Sincronizando cerebro digital...</div>
         ) : (
           <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
         )}
       </div>
 
-      {/* Botón Flotante + */}
+      {/* Botón Flotante para nueva nota */}
       <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
 
-      {/* Modal de Creación */}
+      {/* Modales */}
       <CreateItemModal 
         open={createOpen} 
         onClose={() => setCreateOpen(false)} 
@@ -142,26 +155,3 @@ const fabStyle = {
   cursor: "pointer", boxShadow: "0 0 20px rgba(70,211,126,0.4)",
   zIndex: 1000, transition: "transform 0.2s"
 };
-
-  /*
-  return (
-    <div className="app">
-      <div className="bg" />
-      <div className="container">
-        <TopBar healthOk={healthOk} total={items.length} />
-        <NewInboxItemForm onCreate={handleCreate} />
-
-        {listError ? <div className="error">{listError}</div> : null}
-        {loadingList ? <div className="loading">Cargando…</div> : <CardGrid items={items} setItems={setItems} onOpen={openDetail} />}
-      </div>
-
-      <InboxDetailModal
-        open={detailOpen}
-        item={detailItem}
-        loading={detailLoading}
-        error={detailError}
-        onClose={() => setDetailOpen(false)}
-      />
-    </div>
-  );
-}*/
