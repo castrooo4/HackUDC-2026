@@ -1,4 +1,4 @@
-import {
+﻿import {
   DndContext,
   closestCenter,
   KeyboardSensor,
@@ -17,9 +17,7 @@ import InboxCard from "./Inboxcard";
 export default function CardGrid({ items, setItems, onOpen }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // Exige mover el ratón 5 píxeles para iniciar el arrastre. ¡Esto libera el clic!
-      },
+      activationConstraint: { distance: 5 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -28,26 +26,20 @@ export default function CardGrid({ items, setItems, onOpen }) {
 
   function handleDragEnd(event) {
     const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    if (active.id !== over.id) {
-      const oldIndex = items.findIndex((item) => item.id === active.id);
-      const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
 
-      // Actualizamos el estado en App.jsx con el nuevo orden
-      setItems(arrayMove(items, oldIndex, newIndex));
-    }
+    setItems(arrayMove(items, oldIndex, newIndex));
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={items} strategy={rectSortingStrategy}>
         <div style={masonryContainerStyle}>
           {items.map((item) => (
-            /* Envolvemos la card para controlar el espaciado vertical */
             <div key={item.id} style={itemWrapperStyle}>
               <InboxCard item={item} onOpen={onOpen} />
             </div>
@@ -59,25 +51,16 @@ export default function CardGrid({ items, setItems, onOpen }) {
 }
 
 const masonryContainerStyle = {
-  columnCount: "auto",      // El navegador decide cuántas columnas poner 
-  columnWidth: "320px",    // Ancho sugerido de cada columna 
-  columnGap: "25px",       // Separación horizontal idéntica 
+  columnCount: "auto",
+  columnWidth: "320px",
+  columnGap: "25px",
   width: "100%",
-  padding: "20px 0"
+  padding: "20px 0",
 };
 
 const itemWrapperStyle = {
-  breakInside: "avoid",    // Evita que una tarjeta se parta entre dos columnas 
-  marginBottom: "25px",    // Separación vertical idéntica a la horizontal 
+  breakInside: "avoid",
+  marginBottom: "25px",
   display: "block",
-  width: "100%"
-};
-
-const gridStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "25px",
-  padding: "20px 0",
-  justifyContent: "flex-start",
-  alignItems: "flex-start"
+  width: "100%",
 };

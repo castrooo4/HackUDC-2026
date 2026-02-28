@@ -24,7 +24,6 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [isLight, setIsLight] = useState(false);
 
   const [token, setToken] = useState(localStorage.getItem("token"));
 
@@ -77,8 +76,8 @@ export default function App() {
     try {
       const newItem = await createInboxItem(payload);
       setItems((prev) => [newItem, ...prev]);
-    } catch (e) {
-      console.error("Error al crear:", e);
+    } catch (error) {
+      console.error("Error al crear:", error);
       const mockItem = { id: Date.now(), ...payload, status: "PENDING", created_at: new Date().toISOString() };
       setItems((prev) => [mockItem, ...prev]);
     }
@@ -92,8 +91,8 @@ export default function App() {
     try {
       const data = await getInboxItem(id);
       setDetailItem(data);
-    } catch (e) {
-      setDetailError(e?.message ?? "Error cargando detalle");
+    } catch (error) {
+      setDetailError(error?.message ?? "Error cargando detalle");
     } finally {
       setDetailLoading(false);
     }
@@ -101,7 +100,7 @@ export default function App() {
 
   if (!token) {
     return (
-      <div className={`app ${isLight ? "light-mode" : ""}`}>
+      <div className="app">
         <div className="bg" />
         <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
@@ -110,7 +109,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className={`app ${isLight ? "light-mode" : ""}`} style={{ display: "flex" }}>
+      <div className="app" style={{ display: "flex" }}>
         <Sidebar />
 
         <div className="main-content" style={{ flex: 1, marginLeft: "240px" }}>

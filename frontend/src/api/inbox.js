@@ -1,64 +1,40 @@
-import { apiFetch } from "./client";
+﻿import { apiFetch } from "./client";
 
 export const health = () => apiFetch("/health");
 export const listInbox = () => apiFetch("/inbox");
 export const getInboxItem = (id) => apiFetch(`/inbox/${id}`);
 
-/*
-export const createInboxItem = ({ source = "extension", title, content }) =>
-  apiFetch("/inbox", {
-    method: "POST",
-    body: JSON.stringify({ source, title, content }),
-  });
-  */
-
-/**
- * Crea un item en el inbox.
- * @param {Object} payload - Puede contener:
- * source (string), item_type (TEXT, YOUTUBE, IMAGE, PDF, WEB),
- * content (para TEXT), url (para YT, IMAGE, PDF, WEB),
- * file_base64 (para IMAGE, PDF), title (opcional)
- */
 export const createInboxItem = (payload) =>
   apiFetch("/inbox", {
     method: "POST",
     body: JSON.stringify({
       source: payload.source || "extension",
-      ...payload
+      ...payload,
     }),
   });
 
-// Nuevo: Actualizar un item (PATCH)
 export const updateInboxItem = (id, payload) =>
   apiFetch(`/inbox/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 
-// Nuevo: Eliminar un item (DELETE)
 export const deleteInboxItem = (id) =>
   apiFetch(`/inbox/${id}`, {
     method: "DELETE",
   });
 
+export const getPendingInbox = () => apiFetch("/inbox?status=PROCESSED");
+export const getOrganizedInbox = () => apiFetch("/inbox?status=ORGANIZED");
+export const getDirectoriesTree = () => apiFetch("/directories/tree");
 
-// 1. Obtener solo los items pendientes de validación
-export const getPendingInbox = () =>
-  apiFetch("/inbox?status=PROCESSED");
-
-// 2. Obtener el árbol de carpetas
-export const getDirectoriesTree = () =>
-  apiFetch("/directories/tree");
-
-// 3. Enviar la decisión final
 export const confirmOrganization = (itemId, option) => {
   let payload = {};
-  if (option.type === 'EXISTING') {
+  if (option.type === "EXISTING") {
     payload = { directory_id: option.id };
-  } else if (option.type === 'NEW') {
+  } else if (option.type === "NEW") {
     payload = { directory_name: option.name };
   }
-  // Si es RECOMMENDED, el payload va vacío {}
 
   return apiFetch(`/inbox/${itemId}/confirm-organization`, {
     method: "POST",
@@ -66,9 +42,5 @@ export const confirmOrganization = (itemId, option) => {
   });
 };
 
-export const getOrganizedInbox = () =>
-  apiFetch("/inbox?status=ORGANIZED");
-
 export const listCities = () => apiFetch("/inbox/cities");
-export const listInboxByCity = (city) =>
-  apiFetch(`/inbox/cities/${encodeURIComponent(city)}/items`);
+export const listInboxByCity = (city) => apiFetch(`/inbox/cities/${encodeURIComponent(city)}/items`);

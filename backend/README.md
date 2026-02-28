@@ -76,7 +76,7 @@ curl -X DELETE "http://127.0.0.1:8000/inbox/1"
 ## Flujo de organizacion (nuevo)
 1. Al crear un item (`POST /inbox`):
 - se procesa automaticamente
-- se calcula carpeta recomendada
+- se calcula carpeta recomendada solo entre carpetas ya existentes del usuario
 - se guarda `directory_id` recomendado
 - el estado queda en `PROCESSED`
 

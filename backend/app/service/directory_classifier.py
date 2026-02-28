@@ -1,4 +1,4 @@
-import json
+﻿import json
 import re
 
 import requests
@@ -9,10 +9,16 @@ from app.models.inbox_item import InboxItem, InboxItemType
 
 class DirectoryClassifier:
     def suggest_directory_name(self, item: InboxItem, existing_root_directories: list[str]) -> str:
+        if not existing_root_directories:
+            return "Inbox"
+
         suggestion = self._suggest_with_groq(item, existing_root_directories)
         if suggestion:
-            return suggestion
-        return self._fallback_directory(item)
+            resolved = self._resolve_to_existing(suggestion, existing_root_directories)
+            if resolved:
+                return resolved
+
+        return self._fallback_directory(item, existing_root_directories)
 
     def _suggest_with_groq(self, item: InboxItem, existing_root_directories: list[str]) -> str | None:
         if not settings.LLM_ENABLED:
@@ -65,13 +71,11 @@ class DirectoryClassifier:
             "Salida obligatoria: SOLO JSON valido con esta forma "
             '{"directory_name":"<nombre_carpeta>"}.\n'
             "Reglas estrictas:\n"
-            "1) Usa carpeta existente SOLO si el encaje semantico es fuerte y especifico.\n"
-            "2) Si el encaje con existentes es debil o ambiguo, crea una carpeta nueva.\n"
-            "3) No fuerces categorias genericas (ej. Trabajo/Personal) cuando el tema es mas especifico.\n"
-            "4) Nombre corto y reusable (1-2 palabras), sin '/' ni jerarquia.\n"
-            "5) No expliques nada fuera del JSON.\n"
-            "6) Si creas carpeta nueva, usa un nombre tematico claro basado en el contenido.\n"
-            "7) Prioriza el texto principal y los metadatos sobre el titulo."
+            "1) SOLO puedes devolver uno de los nombres de carpetas existentes.\n"
+            "2) No inventes carpetas nuevas.\n"
+            "3) Si hay duda, elige la opcion existente mas razonable.\n"
+            "4) Prioriza el texto principal y metadatos sobre el titulo.\n"
+            "5) No expliques nada fuera del JSON."
         )
         classification_text = self._build_classification_text(item)
         text_context = (
@@ -155,51 +159,27 @@ class DirectoryClassifier:
         short = " ".join(words[:2])
         return short[:40]
 
-    def _fallback_directory(self, item: InboxItem) -> str:
-        # Fallback tecnico: solo se usa si el LLM falla/no esta disponible.
-        # No clasifica por categorias semanticas predefinidas para evitar sesgos.
-        return self._derive_new_directory_name(item)
+    def _resolve_to_existing(self, suggested_name: str, existing_root_directories: list[str]) -> str | None:
+        normalized_suggested = suggested_name.strip().lower()
+        if not normalized_suggested:
+            return None
+        for existing in existing_root_directories:
+            if existing.lower() == normalized_suggested:
+                return existing
+        return None
 
-    def _derive_new_directory_name(self, item: InboxItem) -> str:
-        type_defaults = {
-            InboxItemType.TEXT: "Notas",
-            InboxItemType.YOUTUBE: "Videos",
-            InboxItemType.IMAGE: "Imagenes",
+    def _fallback_directory(self, item: InboxItem, existing_root_directories: list[str]) -> str:
+        by_type = {
             InboxItemType.PDF: "Documentos",
-            InboxItemType.WEB: "Enlaces",
+            InboxItemType.TEXT: "Trabajo",
+            InboxItemType.YOUTUBE: "Trabajo",
+            InboxItemType.WEB: "Trabajo",
+            InboxItemType.IMAGE: "Personal",
         }
-        source_text = ((item.title or "") + " " + (item.content or "")).strip()
-        if not source_text:
-            return type_defaults.get(item.item_type, "Inbox")
+        preferred = by_type.get(item.item_type)
+        if preferred:
+            for existing in existing_root_directories:
+                if existing.lower() == preferred.lower():
+                    return existing
 
-        clean = re.sub(r"[^0-9A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]", " ", source_text)
-        words = [word for word in re.split(r"\s+", clean) if word]
-
-        stopwords = {
-            "de",
-            "la",
-            "el",
-            "los",
-            "las",
-            "y",
-            "o",
-            "en",
-            "para",
-            "por",
-            "con",
-            "del",
-            "al",
-            "the",
-            "and",
-            "for",
-            "with",
-            "from",
-            "this",
-            "that",
-        }
-        useful = [word for word in words if len(word) > 2 and word.lower() not in stopwords]
-        if not useful:
-            return type_defaults.get(item.item_type, "Inbox")
-
-        candidate = " ".join(useful[:2]).strip().title()
-        return candidate[:40] if candidate else type_defaults.get(item.item_type, "Inbox")
+        return existing_root_directories[0]
