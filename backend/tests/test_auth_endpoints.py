@@ -96,3 +96,27 @@ def test_login_unknown_user(client):
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Credenciales invalidas"
+
+
+def test_register_creates_default_directories(client):
+    register = client.post(
+        "/auth/register",
+        json={
+            "email": "dirs@example.com",
+            "password": "StrongPass123",
+            "full_name": "Dirs User",
+        },
+    )
+    assert register.status_code == 201
+
+    login = client.post(
+        "/auth/login",
+        json={"email": "dirs@example.com", "password": "StrongPass123"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+
+    tree = client.get("/directories/tree", headers={"Authorization": f"Bearer {token}"})
+    assert tree.status_code == 200
+    root_names = {node["name"] for node in tree.json()["roots"]}
+    assert {"Trabajo", "Personal", "Finanzas", "Documentos"}.issubset(root_names)

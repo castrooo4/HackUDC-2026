@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
 from app.db.database import get_session
-from app.models.inbox_item import InboxItem
+from app.models.inbox_item import InboxItem, InboxStatus
 from app.models.user import User
-from app.schemas.inbox import InboxCreate, InboxRead, InboxUpdate
+from app.schemas.inbox import InboxConfirmOrganization, InboxCreate, InboxRead, InboxUpdate
 from app.service.auth_dependencies import get_current_user
+from app.service.directory_service import DirectoryService
 from app.service.inbox_ingest_service import InboxIngestionService
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 ingestion_service = InboxIngestionService()
+directory_service = DirectoryService()
 
 
 def _get_owned_item(session: Session, item_id: int, user_id: int) -> InboxItem:
@@ -57,23 +59,24 @@ def create_inbox_item(
         favicon_base64=processed.favicon_base64,
         mime_type=processed.mime_type,
         metadata_json=processed.metadata_json,
+        status=InboxStatus.PENDING,
     )
     session.add(item)
     session.commit()
     session.refresh(item)
-    return item
+    return directory_service.suggest_directory_for_item(session, current_user.id, item)
 
 
 @router.get("", response_model=list[InboxRead], summary="Listar inbox")
 def list_inbox_items(
+    status_filter: InboxStatus | None = Query(default=None, alias="status"),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    statement = (
-        select(InboxItem)
-        .where(InboxItem.user_id == current_user.id)
-        .order_by(InboxItem.created_at.desc())
-    )
+    statement = select(InboxItem).where(InboxItem.user_id == current_user.id)
+    if status_filter is not None:
+        statement = statement.where(InboxItem.status == status_filter)
+    statement = statement.order_by(InboxItem.created_at.desc())
     items = session.exec(statement).all()
     return items
 
@@ -116,3 +119,28 @@ def delete_inbox_item(
 
     session.delete(item)
     session.commit()
+
+
+@router.post("/{item_id}/confirm-organization", response_model=InboxRead, summary="Confirmar organizacion")
+def confirm_inbox_item_organization(
+    item_id: int,
+    payload: InboxConfirmOrganization,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    item = _get_owned_item(session, item_id, current_user.id)
+    if item.status != InboxStatus.PROCESSED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="InboxItem must be PROCESSED to confirm organization",
+        )
+    try:
+        return directory_service.confirm_item_directory(
+            session=session,
+            user_id=current_user.id,
+            item=item,
+            directory_id=payload.directory_id,
+            directory_name=payload.directory_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc

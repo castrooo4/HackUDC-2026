@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    LLM_ENABLED: bool = True
+    LLM_PROVIDER: str = "groq"
+    LLM_TIMEOUT_SECONDS: float = 6.0
+    GROQ_API_KEY: str = ""
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_MODEL_TEXT: str = "llama-3.1-8b-instant"
+    GROQ_MODEL_VISION: str = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 
 settings = Settings()

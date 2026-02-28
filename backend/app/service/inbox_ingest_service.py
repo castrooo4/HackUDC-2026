@@ -1,3 +1,5 @@
+import json
+import re
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import fitz
@@ -83,12 +85,36 @@ class InboxIngestionService:
         except Exception:
             pass
 
+        watch_url = self._build_youtube_watch_url(url, video_id)
+        page_meta = self._extract_youtube_page_metadata(watch_url) if watch_url else {}
+        if page_meta:
+            metadata.update(page_meta)
+            if not title and page_meta.get("page_title"):
+                title = truncate_title(str(page_meta["page_title"]))
+
+        if not thumbnail_data_url and page_meta.get("thumbnail_url"):
+            try:
+                thumb_response = requests.get(str(page_meta["thumbnail_url"]), timeout=self.timeout_seconds)
+                thumb_response.raise_for_status()
+                optimized = optimize_image_to_preview(
+                    thumb_response.content,
+                    max_width=480,
+                    max_height=270,
+                    output_format="JPEG",
+                    quality=66,
+                )
+                thumbnail_data_url = optimized["data_url"]
+            except Exception:
+                pass
+
         if not title:
             title = payload.title or f"YouTube video {video_id or ''}".strip()
 
+        effective_content = payload.content or str(page_meta.get("description_excerpt") or "")
+
         return IngestionResult(
             title=title,
-            content=payload.content or "",
+            content=effective_content,
             url=url,
             preview_base64=thumbnail_data_url,
             favicon_base64=None,
@@ -177,6 +203,7 @@ class InboxIngestionService:
     def _process_web(self, payload: InboxCreate) -> IngestionResult:
         url = payload.url or ""
         title = payload.title
+        content = payload.content or ""
         favicon_data_url = None
         metadata: dict = {"preview_kind": "web"}
 
@@ -188,6 +215,23 @@ class InboxIngestionService:
             page_title = (soup.title.string if soup.title else "") or ""
             if not title:
                 title = truncate_title(page_title) if page_title else self._title_from_url_or_default(url, "Web")
+
+            meta_description = self._meta_content(soup, "name", "description")
+            og_description = self._meta_content(soup, "property", "og:description")
+            og_site_name = self._meta_content(soup, "property", "og:site_name")
+            og_type = self._meta_content(soup, "property", "og:type")
+            if meta_description:
+                metadata["meta_description"] = self._compact_text(meta_description, 320)
+            if og_description:
+                metadata["og_description"] = self._compact_text(og_description, 320)
+            if og_site_name:
+                metadata["site_name"] = og_site_name
+            if og_type:
+                metadata["og_type"] = og_type
+
+            if not content:
+                best_desc = og_description or meta_description or ""
+                content = self._compact_text(best_desc, 500) if best_desc else content
 
             favicon_url = self._extract_favicon_url(url, soup)
             if favicon_url:
@@ -212,7 +256,7 @@ class InboxIngestionService:
 
         return IngestionResult(
             title=title or "Web",
-            content=payload.content or "",
+            content=content,
             url=url,
             preview_base64=None,
             favicon_base64=favicon_data_url,
@@ -246,6 +290,92 @@ class InboxIngestionService:
                 return parsed.path.split("/shorts/")[-1].split("/")[0]
         return None
 
+    def _build_youtube_watch_url(self, raw_url: str, video_id: str | None) -> str:
+        if video_id:
+            return f"https://www.youtube.com/watch?v={video_id}"
+        return raw_url
+
+    def _extract_youtube_page_metadata(self, watch_url: str) -> dict:
+        result: dict = {}
+        try:
+            response = requests.get(watch_url, timeout=self.timeout_seconds)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            result["source_page"] = watch_url
+
+            ld_video = self._extract_youtube_ld_video(soup)
+            if ld_video:
+                if isinstance(ld_video.get("name"), str):
+                    result["page_title"] = truncate_title(ld_video["name"])
+                if isinstance(ld_video.get("description"), str):
+                    result["description_excerpt"] = self._compact_text(ld_video["description"], 320)
+                if isinstance(ld_video.get("duration"), str):
+                    result["duration_iso8601"] = ld_video["duration"]
+                if isinstance(ld_video.get("uploadDate"), str):
+                    result["upload_date"] = ld_video["uploadDate"]
+                thumbnail_url = ld_video.get("thumbnailUrl")
+                if isinstance(thumbnail_url, list) and thumbnail_url:
+                    result["thumbnail_url"] = thumbnail_url[0]
+                elif isinstance(thumbnail_url, str):
+                    result["thumbnail_url"] = thumbnail_url
+                author = ld_video.get("author")
+                if isinstance(author, dict) and isinstance(author.get("name"), str):
+                    result["channel_name"] = author["name"]
+                elif isinstance(author, str):
+                    result["channel_name"] = author
+
+            keywords = soup.find("meta", attrs={"name": "keywords"})
+            if keywords and keywords.get("content"):
+                raw_keywords = [part.strip() for part in keywords["content"].split(",")]
+                result["keywords"] = [value for value in raw_keywords if value][:12]
+
+            interaction = soup.find("meta", attrs={"itemprop": "interactionCount"})
+            if interaction and interaction.get("content"):
+                content = interaction["content"].strip()
+                if content.isdigit():
+                    result["view_count"] = int(content)
+        except Exception:
+            return {}
+        return result
+
+    def _extract_youtube_ld_video(self, soup: BeautifulSoup) -> dict | None:
+        scripts = soup.find_all("script", attrs={"type": "application/ld+json"})
+        for script in scripts:
+            text = script.string or script.get_text() or ""
+            if not text.strip():
+                continue
+            try:
+                parsed = json.loads(text)
+            except Exception:
+                continue
+            candidate = self._find_video_object(parsed)
+            if candidate:
+                return candidate
+        return None
+
+    def _find_video_object(self, payload) -> dict | None:
+        if isinstance(payload, dict):
+            payload_type = payload.get("@type")
+            if payload_type == "VideoObject":
+                return payload
+            for value in payload.values():
+                found = self._find_video_object(value)
+                if found:
+                    return found
+        if isinstance(payload, list):
+            for value in payload:
+                found = self._find_video_object(value)
+                if found:
+                    return found
+        return None
+
+    def _compact_text(self, value: str, max_len: int) -> str:
+        cleaned = re.sub(r"\s+", " ", value).strip()
+        if len(cleaned) <= max_len:
+            return cleaned
+        return cleaned[: max_len - 3].rstrip() + "..."
+
     def _extract_favicon_url(self, page_url: str, soup: BeautifulSoup) -> str | None:
         for rel in ("icon", "shortcut icon", "apple-touch-icon"):
             tag = soup.find("link", rel=lambda value: value and rel in value.lower())
@@ -269,9 +399,22 @@ class InboxIngestionService:
             return None
         return None
 
+    def _meta_content(self, soup: BeautifulSoup, attr_name: str, attr_value: str) -> str | None:
+        tag = soup.find("meta", attrs={attr_name: attr_value})
+        if not tag or not tag.get("content"):
+            return None
+        value = str(tag["content"]).strip()
+        return value if value else None
+
     def _title_from_url_or_default(self, url: str | None, default: str) -> str:
         if not url:
             return default
         parsed = urlparse(url)
         candidate = parsed.path.rsplit("/", 1)[-1] or parsed.netloc or default
         return truncate_title(candidate.replace("-", " ").replace("_", " ")) or default
+
+    def _compact_text(self, value: str, max_len: int) -> str:
+        cleaned = re.sub(r"\s+", " ", value).strip()
+        if len(cleaned) <= max_len:
+            return cleaned
+        return cleaned[: max_len - 3].rstrip() + "..."

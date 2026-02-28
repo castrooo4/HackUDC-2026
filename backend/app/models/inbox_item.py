@@ -8,6 +8,8 @@ from sqlmodel import Field, SQLModel
 
 class InboxStatus(str, Enum):
     PENDING = "PENDING"
+    PROCESSED = "PROCESSED"
+    ORGANIZED = "ORGANIZED"
 
 
 class InboxItemType(str, Enum):
@@ -22,6 +24,7 @@ class InboxItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
     user_id: int = Field(nullable=False, foreign_key="user.id", index=True)
+    directory_id: Optional[int] = Field(default=None, nullable=True, foreign_key="directory.id", index=True)
     source: str = Field(default="extension", nullable=False)
     item_type: InboxItemType = Field(default=InboxItemType.TEXT, nullable=False, max_length=20)
     url: Optional[str] = Field(default=None, nullable=True)

@@ -6,9 +6,11 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenRead, UserRead
 from app.service.auth_dependencies import get_current_user
 from app.service.auth_service import AuthService
+from app.service.directory_service import DirectoryService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 auth_service = AuthService()
+directory_service = DirectoryService()
 
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -25,6 +27,7 @@ def register(payload: RegisterRequest, session: Session = Depends(get_session)):
         password=payload.password,
         full_name=payload.full_name,
     )
+    directory_service.ensure_default_directories(session, user.id)
     return user
 
 

@@ -60,12 +60,30 @@ curl -X DELETE "http://127.0.0.1:8000/inbox/1"
 ## Endpoints
 - `POST /auth/register`
 - `POST /auth/login`
+- `GET /auth/me`
 - `POST /inbox`
 - `GET /inbox`
 - `GET /inbox/{id}`
+- `POST /inbox/{id}/confirm-organization`
 - `PATCH /inbox/{id}`
 - `DELETE /inbox/{id}`
+- `GET /directories/tree`
 - `GET /health`
+
+## Flujo de organizacion (nuevo)
+1. Al crear un item (`POST /inbox`):
+- se procesa automaticamente
+- se calcula carpeta recomendada
+- se guarda `directory_id` recomendado
+- el estado queda en `PROCESSED`
+
+2. Confirmacion humana (`POST /inbox/{id}/confirm-organization`):
+- acepta recomendado: `{}`
+- seleccionar carpeta existente: `{"directory_id": 3}`
+- cambiar/crear por nombre: `{"directory_name": "Arquitectura"}`
+- al confirmar, pasa a `ORGANIZED`
+
+3. Si intentas confirmar un item que no esta en `PROCESSED`, devuelve `409`.
 
 ## Pruebas en Postman (recomendado)
 
@@ -204,7 +222,10 @@ Esperado en respuesta:
 
 ## Consultas de verificacion
 - Listar: `GET http://127.0.0.1:8000/inbox`
+- Listar filtrando estado: `GET http://127.0.0.1:8000/inbox?status=PROCESSED` (tambien `PENDING`, `ORGANIZED`)
 - Detalle: `GET http://127.0.0.1:8000/inbox/{id}`
+- Confirmar organizacion: `POST http://127.0.0.1:8000/inbox/{id}/confirm-organization`
+- Ver arbol: `GET http://127.0.0.1:8000/directories/tree`
 - Docs: `http://127.0.0.1:8000/docs`
 
 ## Tests

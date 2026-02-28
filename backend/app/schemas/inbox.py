@@ -130,6 +130,7 @@ class InboxRead(BaseModel):
     id: int
     created_at: datetime
     user_id: int
+    directory_id: Optional[int]
     source: str
     item_type: InboxItemType
     title: Optional[str]
@@ -146,7 +147,6 @@ class InboxUpdate(BaseModel):
     source: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
-    status: Optional[InboxStatus] = None
 
     @field_validator("title")
     @classmethod
@@ -169,7 +169,26 @@ class InboxUpdate(BaseModel):
     @model_validator(mode="after")
     def validate_not_empty_payload(self):
         if not any(
-            value is not None for value in [self.source, self.title, self.content, self.status]
+            value is not None for value in [self.source, self.title, self.content]
         ):
             raise ValueError("debes enviar al menos un campo para actualizar")
+        return self
+
+
+class InboxConfirmOrganization(BaseModel):
+    directory_id: Optional[int] = None
+    directory_name: Optional[str] = Field(default=None, max_length=60)
+
+    @field_validator("directory_name")
+    @classmethod
+    def normalize_directory_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        cleaned = " ".join(value.split()).strip()
+        return cleaned if cleaned else None
+
+    @model_validator(mode="after")
+    def validate_exclusive_inputs(self):
+        if self.directory_id is not None and self.directory_name is not None:
+            raise ValueError("usa directory_id o directory_name, no ambos")
         return self

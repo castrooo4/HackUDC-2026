@@ -58,6 +58,8 @@ def test_create_text_item(client, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["item_type"] == "TEXT"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["title"]
     assert data["preview_base64"] is None
     assert data["metadata_json"]["preview_kind"] == "text"
@@ -65,6 +67,27 @@ def test_create_text_item(client, auth_headers):
 
 def test_create_youtube_item(client, monkeypatch, auth_headers):
     thumbnail = _build_png_bytes(1280, 720)
+    watch_html = """
+    <html>
+      <head>
+        <script type="application/ld+json">
+        {
+          "@context":"https://schema.org",
+          "@type":"VideoObject",
+          "name":"Video de prueba FastAPI",
+          "description":"Guia de arquitectura backend para Kelea Digital Brain",
+          "uploadDate":"2026-02-20",
+          "duration":"PT12M34S",
+          "thumbnailUrl":"https://img.youtube.com/vi/test/hqdefault.jpg",
+          "author":{"@type":"Person","name":"Canal Demo"}
+        }
+        </script>
+        <meta name="keywords" content="fastapi,backend,arquitectura,python" />
+        <meta itemprop="interactionCount" content="123456" />
+      </head>
+      <body></body>
+    </html>
+    """
 
     def fake_get(url, timeout=8):
         if "youtube.com/oembed" in url:
@@ -75,6 +98,8 @@ def test_create_youtube_item(client, monkeypatch, auth_headers):
                     "thumbnail_url": "https://img.youtube.com/vi/test/hqdefault.jpg",
                 }
             )
+        if "youtube.com/watch?v=test" in url:
+            return MockResponse(text=watch_html, content=watch_html.encode("utf-8"))
         if "img.youtube.com" in url:
             return MockResponse(content=thumbnail, headers={"content-type": "image/jpeg"})
         raise RuntimeError("unexpected URL")
@@ -89,9 +114,17 @@ def test_create_youtube_item(client, monkeypatch, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["item_type"] == "YOUTUBE"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["title"] == "Video de prueba FastAPI"
     assert data["preview_base64"].startswith("data:image/jpeg;base64,")
     assert data["metadata_json"]["video_id"] == "test"
+    assert data["metadata_json"]["channel_name"] == "Canal Demo"
+    assert data["metadata_json"]["duration_iso8601"] == "PT12M34S"
+    assert data["metadata_json"]["upload_date"] == "2026-02-20"
+    assert "backend" in data["metadata_json"]["keywords"]
+    assert data["metadata_json"]["view_count"] == 123456
+    assert "arquitectura backend" in data["content"].lower()
 
 
 def test_create_image_item_with_base64(client, auth_headers):
@@ -106,6 +139,8 @@ def test_create_image_item_with_base64(client, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["item_type"] == "IMAGE"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["preview_base64"].startswith("data:image/jpeg;base64,")
     assert data["metadata_json"]["width"] == 1024
     assert data["metadata_json"]["preview_width"] <= 560
@@ -128,6 +163,8 @@ def test_create_image_item_with_url(client, monkeypatch, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["title"] == "cover.png"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["preview_base64"].startswith("data:image/jpeg;base64,")
 
 
@@ -143,6 +180,8 @@ def test_create_pdf_item_with_base64(client, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["item_type"] == "PDF"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["preview_base64"].startswith("data:image/jpeg;base64,")
     assert data["metadata_json"]["pages"] == 1
 
@@ -171,6 +210,8 @@ def test_create_web_item(client, monkeypatch, auth_headers):
     data = response.json()
     assert response.status_code == 201
     assert data["item_type"] == "WEB"
+    assert data["status"] == "PROCESSED"
+    assert data["directory_id"] is not None
     assert data["title"] == "Example Domain"
     assert data["favicon_base64"].startswith("data:image/png;base64,")
 
@@ -222,6 +263,37 @@ def test_list_get_patch_delete_flow(client, auth_headers):
     assert not_found.status_code == 404
 
 
+def test_list_inbox_filter_by_status(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "item para filtrar por estado"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    assert created.json()["status"] == "PROCESSED"
+
+    processed_list = client.get("/inbox?status=PROCESSED", headers=auth_headers)
+    assert processed_list.status_code == 200
+    assert any(item["id"] == item_id for item in processed_list.json())
+
+    confirm = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={},
+        headers=auth_headers,
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["status"] == "ORGANIZED"
+
+    organized_list = client.get("/inbox?status=ORGANIZED", headers=auth_headers)
+    assert organized_list.status_code == 200
+    assert any(item["id"] == item_id for item in organized_list.json())
+
+    processed_list_after = client.get("/inbox?status=PROCESSED", headers=auth_headers)
+    assert processed_list_after.status_code == 200
+    assert all(item["id"] != item_id for item in processed_list_after.json())
+
+
 def test_inbox_isolation_between_users(client, auth_headers):
     created = client.post(
         "/inbox",
@@ -247,3 +319,122 @@ def test_inbox_isolation_between_users(client, auth_headers):
 
     get_second = client.get(f"/inbox/{item_id}", headers=second_headers)
     assert get_second.status_code == 404
+
+
+def test_directory_tree_has_defaults(client, auth_headers):
+    tree = client.get("/directories/tree", headers=auth_headers)
+    assert tree.status_code == 200
+    roots = tree.json()["roots"]
+    root_names = {node["name"] for node in roots}
+    assert {"Trabajo", "Personal", "Finanzas", "Documentos"}.issubset(root_names)
+
+
+def test_confirm_organization_inbox_item(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "PDF", "file_base64": "data:application/pdf;base64,JVBERi0xLjcKJQ=="},
+        headers=auth_headers,
+    )
+    # El base64 mínimo puede fallar parseo PDF, así que usamos uno válido si hace falta.
+    if created.status_code != 201:
+        raw_pdf = _build_pdf_bytes()
+        import base64
+
+        created = client.post(
+            "/inbox",
+            json={
+                "item_type": "PDF",
+                "file_base64": "data:application/pdf;base64," + base64.b64encode(raw_pdf).decode("ascii"),
+            },
+            headers=auth_headers,
+        )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+
+    organized = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={},
+        headers=auth_headers,
+    )
+    assert organized.status_code == 200
+    organized_data = organized.json()
+    assert organized_data["directory_id"] is not None
+    assert organized_data["status"] == "ORGANIZED"
+
+    tree = client.get("/directories/tree", headers=auth_headers)
+    assert tree.status_code == 200
+    roots = tree.json()["roots"]
+    assert any(item_id in node["item_ids"] for node in roots)
+
+
+def test_confirm_organization_reuses_existing_directory_case_insensitive(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota breve del sprint"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+
+    confirm = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={"directory_name": "trabajo"},
+        headers=auth_headers,
+    )
+    assert confirm.status_code == 200
+    assert confirm.json()["status"] == "ORGANIZED"
+
+    tree = client.get("/directories/tree", headers=auth_headers)
+    roots = tree.json()["roots"]
+    root_names = {node["name"] for node in roots}
+    assert "Trabajo" in root_names
+    assert "trabajo" not in root_names
+    trabajo_node = next(node for node in roots if node["name"] == "Trabajo")
+    assert item_id in trabajo_node["item_ids"]
+
+
+def test_confirm_organization_fails_when_already_organized(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "item para confirmar dos veces"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+
+    first = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+
+    second = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={},
+        headers=auth_headers,
+    )
+    assert second.status_code == 409
+
+
+def test_confirm_organization_creates_new_directory_when_user_selects_new(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "ideas de producto para comunidad"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+
+    organized = client.post(
+        f"/inbox/{item_id}/confirm-organization",
+        json={"directory_name": "Innovacion"},
+        headers=auth_headers,
+    )
+    assert organized.status_code == 200
+    assert organized.json()["directory_id"] is not None
+    assert organized.json()["status"] == "ORGANIZED"
+
+    tree = client.get("/directories/tree", headers=auth_headers)
+    roots = tree.json()["roots"]
+    assert any(node["name"] == "Innovacion" and item_id in node["item_ids"] for node in roots)
