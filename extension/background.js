@@ -3,24 +3,22 @@ async function sendToRemitBackend(payload) {
   const data = await chrome.storage.local.get(['access_token']);
   const token = data.access_token;
 
-  // --- LA MAGIA DEL AVISO VISUAL ---
+  // --- LA MAGIA DEL AVISO VISUAL (Si no hay sesión) ---
   if (!token) {
     console.warn("Remit: Intento de guardado sin iniciar sesión.");
-
-    // Buscamos la pestaña donde está el usuario y le disparamos el Toast rojo
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: "SHOW_TOAST",
           message: "⚠️ Inicia sesión en Remit para guardar",
-          type: "error" // Indicamos que use el estilo rojo
+          type: "error"
         });
       }
     });
-    return; // Detenemos la ejecución para que no haga el fetch
+    return;
   }
 
-  // ... (Aquí sigue tu código normal del fetch con el Authorization: Bearer) ...
+  // --- HACEMOS LA PETICIÓN AL BACKEND ---
   fetch("http://127.0.0.1:8000/inbox", {
     method: "POST",
     headers: {
@@ -29,7 +27,49 @@ async function sendToRemitBackend(payload) {
     },
     body: JSON.stringify(payload)
   })
-  // ... resto del fetch ...
+    .then(response => {
+      // Aquí es donde manejamos la respuesta para mostrar el Toast
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) return;
+
+        if (response.ok) {
+          // ¡Éxito!
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "¡Guardado en Remit!",
+            type: "success"
+          });
+        } else if (response.status === 401) {
+          // Token caducado
+          console.error("Remit: Token expirado o inválido.");
+          chrome.storage.local.remove(['access_token']);
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "⚠️ Tu sesión ha caducado",
+            type: "error"
+          });
+        } else {
+          // Otro error del servidor (ej. 500 o 422)
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "❌ Error al guardar en el cerebro",
+            type: "error"
+          });
+        }
+      });
+    })
+    .catch(err => {
+      console.error("Error Remit:", err);
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "❌ Error de conexión con el servidor",
+            type: "error"
+          });
+        }
+      });
+    });
 }
 // --- 2. FUNCIÓN MÁGICA PARA CONVERTIR A BASE64 ---
 async function urlToBase64(url) {
