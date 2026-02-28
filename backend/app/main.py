@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.health import router as health_router
 from app.config import settings
+from app.routers.health import router as health_router
 from app.routers.router import api_router
 
 

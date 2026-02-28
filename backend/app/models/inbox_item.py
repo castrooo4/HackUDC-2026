@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -20,7 +20,7 @@ class InboxItemType(str, Enum):
 
 class InboxItem(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
     source: str = Field(default="extension", nullable=False)
     item_type: InboxItemType = Field(default=InboxItemType.TEXT, nullable=False, max_length=20)
     url: Optional[str] = Field(default=None, nullable=True)

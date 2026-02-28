@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from app.db.database import get_session
 from app.models.inbox_item import InboxItem
 from app.schemas.inbox import InboxCreate, InboxRead, InboxUpdate
-from app.services.inbox_ingest import InboxIngestionService
+from app.service.inbox_ingest_service import InboxIngestionService
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 ingestion_service = InboxIngestionService()
@@ -35,13 +35,13 @@ def create_inbox_item(payload: InboxCreate, session: Session = Depends(get_sessi
     item = InboxItem(
         source=payload.source,
         item_type=payload.item_type,
-        title=processed["title"],
-        content=processed["content"],
-        url=processed["url"],
-        preview_base64=processed["preview_base64"],
-        favicon_base64=processed["favicon_base64"],
-        mime_type=processed["mime_type"],
-        metadata_json=processed["metadata_json"],
+        title=processed.title,
+        content=processed.content,
+        url=processed.url,
+        preview_base64=processed.preview_base64,
+        favicon_base64=processed.favicon_base64,
+        mime_type=processed.mime_type,
+        metadata_json=processed.metadata_json,
     )
     session.add(item)
     session.commit()

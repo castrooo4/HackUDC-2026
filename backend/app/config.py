@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "Kelea Digital Brain - MVP"
     API_PREFIX: str = ""
     CORS_ORIGINS: str = (
-        "http://localhost,http://localhost:3000,http://localhost:5173,"
-        "http://127.0.0.1,http://127.0.0.1:3000,http://127.0.0.1:5173"
+        "http://localhost,http://localhost:3000,http://localhost:4173,http://localhost:5173,http://localhost:8080,"
+        "http://127.0.0.1,http://127.0.0.1:3000,http://127.0.0.1:4173,http://127.0.0.1:5173,http://127.0.0.1:8080"
     )
     DATABASE_URL: str = "sqlite:///./kelea.db"
 

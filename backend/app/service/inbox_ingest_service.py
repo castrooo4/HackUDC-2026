@@ -4,6 +4,7 @@ import fitz
 import requests
 from bs4 import BeautifulSoup
 
+from app.classes.ingestion_result import IngestionResult
 from app.models.inbox_item import InboxItemType
 from app.schemas.inbox import InboxCreate
 from app.utils.preview import (
@@ -19,7 +20,7 @@ class InboxIngestionService:
     def __init__(self, timeout_seconds: int = 8):
         self.timeout_seconds = timeout_seconds
 
-    def process(self, payload: InboxCreate) -> dict:
+    def process(self, payload: InboxCreate) -> IngestionResult:
         if payload.item_type == InboxItemType.TEXT:
             return self._process_text(payload)
         if payload.item_type == InboxItemType.YOUTUBE:
@@ -32,20 +33,20 @@ class InboxIngestionService:
             return self._process_web(payload)
         return self._process_text(payload)
 
-    def _process_text(self, payload: InboxCreate) -> dict:
+    def _process_text(self, payload: InboxCreate) -> IngestionResult:
         content = payload.content or ""
         title = payload.title or generate_title_from_text(content)
-        return {
-            "title": title,
-            "content": content,
-            "url": payload.url,
-            "preview_base64": None,
-            "favicon_base64": None,
-            "mime_type": "text/plain",
-            "metadata_json": {"preview_kind": "text"},
-        }
+        return IngestionResult(
+            title=title,
+            content=content,
+            url=payload.url,
+            preview_base64=None,
+            favicon_base64=None,
+            mime_type="text/plain",
+            metadata_json={"preview_kind": "text"},
+        )
 
-    def _process_youtube(self, payload: InboxCreate) -> dict:
+    def _process_youtube(self, payload: InboxCreate) -> IngestionResult:
         url = payload.url or ""
         video_id = self._extract_youtube_video_id(url)
         title = payload.title
@@ -84,17 +85,18 @@ class InboxIngestionService:
 
         if not title:
             title = payload.title or f"YouTube video {video_id or ''}".strip()
-        return {
-            "title": title,
-            "content": payload.content or "",
-            "url": url,
-            "preview_base64": thumbnail_data_url,
-            "favicon_base64": None,
-            "mime_type": "video/youtube",
-            "metadata_json": metadata,
-        }
 
-    def _process_image(self, payload: InboxCreate) -> dict:
+        return IngestionResult(
+            title=title,
+            content=payload.content or "",
+            url=url,
+            preview_base64=thumbnail_data_url,
+            favicon_base64=None,
+            mime_type="video/youtube",
+            metadata_json=metadata,
+        )
+
+    def _process_image(self, payload: InboxCreate) -> IngestionResult:
         mime_type, raw_bytes = self._resolve_binary(payload)
         if not raw_bytes:
             raise ValueError("No se pudo obtener la imagen")
@@ -116,17 +118,18 @@ class InboxIngestionService:
             "preview_height": optimized["preview_height"],
             "preview_bytes": optimized["preview_bytes"],
         }
-        return {
-            "title": title,
-            "content": payload.content or "",
-            "url": payload.url,
-            "preview_base64": optimized["data_url"],
-            "favicon_base64": None,
-            "mime_type": mime_type or optimized["mime_type"],
-            "metadata_json": metadata,
-        }
 
-    def _process_pdf(self, payload: InboxCreate) -> dict:
+        return IngestionResult(
+            title=title,
+            content=payload.content or "",
+            url=payload.url,
+            preview_base64=optimized["data_url"],
+            favicon_base64=None,
+            mime_type=mime_type or optimized["mime_type"],
+            metadata_json=metadata,
+        )
+
+    def _process_pdf(self, payload: InboxCreate) -> IngestionResult:
         mime_type, raw_bytes = self._resolve_binary(payload)
         if not raw_bytes:
             raise ValueError("No se pudo obtener el PDF")
@@ -160,21 +163,23 @@ class InboxIngestionService:
         }
         if page_count > 0 and preview_data_url:
             metadata["preview_bytes"] = len(preview_data_url)
-        return {
-            "title": title,
-            "content": payload.content or "",
-            "url": payload.url,
-            "preview_base64": preview_data_url,
-            "favicon_base64": None,
-            "mime_type": mime_type or "application/pdf",
-            "metadata_json": metadata,
-        }
 
-    def _process_web(self, payload: InboxCreate) -> dict:
+        return IngestionResult(
+            title=title,
+            content=payload.content or "",
+            url=payload.url,
+            preview_base64=preview_data_url,
+            favicon_base64=None,
+            mime_type=mime_type or "application/pdf",
+            metadata_json=metadata,
+        )
+
+    def _process_web(self, payload: InboxCreate) -> IngestionResult:
         url = payload.url or ""
         title = payload.title
         favicon_data_url = None
         metadata: dict = {"preview_kind": "web"}
+
         try:
             response = requests.get(url, timeout=self.timeout_seconds)
             response.raise_for_status()
@@ -205,15 +210,15 @@ class InboxIngestionService:
             if fallback_icon:
                 favicon_data_url = fallback_icon
 
-        return {
-            "title": title or "Web",
-            "content": payload.content or "",
-            "url": url,
-            "preview_base64": None,
-            "favicon_base64": favicon_data_url,
-            "mime_type": "text/html",
-            "metadata_json": metadata,
-        }
+        return IngestionResult(
+            title=title or "Web",
+            content=payload.content or "",
+            url=url,
+            preview_base64=None,
+            favicon_base64=favicon_data_url,
+            mime_type="text/html",
+            metadata_json=metadata,
+        )
 
     def _resolve_binary(self, payload: InboxCreate) -> tuple[str | None, bytes]:
         if payload.file_base64:

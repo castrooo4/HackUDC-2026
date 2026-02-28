@@ -16,6 +16,15 @@ uvicorn app.main:app --reload
 
 Base URL: `http://127.0.0.1:8000`
 
+## Estructura (resumen)
+- `app/routers`: endpoints (`inbox`, `health`)
+- `app/service`: logica de negocio (ingesta por tipo)
+- `app/classes`: clases de apoyo (resultado tipado de ingesta)
+- `app/db`: engine y sessions
+- `app/models`: SQLModel
+- `app/schemas`: request/response
+- `app/utils`: utilidades de preview/base64/imagenes
+
 ## Endpoints
 - `POST /inbox`
 - `GET /inbox`
@@ -130,3 +139,9 @@ Esperado en respuesta:
 - Listar: `GET http://127.0.0.1:8000/inbox`
 - Detalle: `GET http://127.0.0.1:8000/inbox/{id}`
 - Docs: `http://127.0.0.1:8000/docs`
+
+## Tests
+```bash
+cd backend
+python -m pytest -q
+```
