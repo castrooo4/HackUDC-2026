@@ -1,15 +1,20 @@
-﻿function injectTextButton(title) {
-  const container = title.closest("div.g") || title.closest(".tF2Cxc") || title.parentElement;
-  if (!container || container.querySelector(".remit-save-btn")) return;
+function injectTextButton(title) {
+  const resultCard = title.closest(".tF2Cxc") || title.closest("div.g");
+  if (!resultCard) return;
 
-  const link = container.querySelector("a");
+  const titleRow = title.closest("div.yuRUbf") || title.parentElement;
+  if (!titleRow || titleRow.querySelector(".remit-save-btn")) return;
+
+  const titleLink = title.closest("a");
+  const link = titleLink || resultCard.querySelector("a[href^='http']");
   if (!link) return;
+  if (!/^https?:\/\//i.test(link.href)) return;
+  if (link.href.includes("google.com/search?")) return;
 
-  container.classList.add("remit-hover-zone");
-  container.style.position = "relative";
+  titleRow.classList.add("remit-hover-zone", "remit-google-anchor");
 
   const btn = document.createElement("button");
-  btn.className = "remit-save-btn";
+  btn.className = "remit-save-btn remit-google-btn";
   btn.innerHTML = "🧠";
   btn.onclick = (event) => {
     event.preventDefault();
@@ -20,7 +25,7 @@
       btn.innerHTML = "🧠";
     }, 2000);
   };
-  container.appendChild(btn);
+  titleRow.appendChild(btn);
 }
 
 function injectImageButton() {
@@ -33,16 +38,11 @@ function injectImageButton() {
     const container = img.closest("div[role='listitem']") || img.parentElement?.parentElement;
     if (!container || container.querySelector(".remit-save-btn")) return;
 
-    container.classList.add("remit-hover-zone");
-    container.style.position = "relative";
-    container.style.display = "block";
+    container.classList.add("remit-hover-zone", "remit-google-anchor");
 
     const btn = document.createElement("button");
-    btn.className = "remit-save-btn";
+    btn.className = "remit-save-btn remit-google-btn";
     btn.innerHTML = "🧠";
-    btn.style.zIndex = "9999";
-    btn.style.top = "10px";
-    btn.style.right = "10px";
 
     btn.onclick = (event) => {
       event.preventDefault();
@@ -66,7 +66,7 @@ function injectImageButton() {
 }
 
 function scanGoogle() {
-  const textTitles = document.querySelectorAll("h3");
+  const textTitles = document.querySelectorAll(".tF2Cxc h3, .g h3");
   textTitles.forEach((title) => injectTextButton(title));
   injectImageButton();
 }

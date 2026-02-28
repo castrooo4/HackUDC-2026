@@ -111,7 +111,7 @@ async function sendToBackend(payload) {
   if (!token) {
     console.warn("Remit: save attempted without active session");
     await sendToastToActiveTab("Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
-    return;
+    return { status: "unauthorized", message: "Inicia sesion en Remit para guardar" };
   }
 
   const payloadWithLocation = await addLocationIfEnabled(payload);
@@ -127,21 +127,50 @@ async function sendToBackend(payload) {
     });
 
     if (response.ok) {
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (_error) {
+        data = null;
+      }
+
       await setStorage({ remit_last_saved: Date.now() });
-      await sendToastToActiveTab("Guardado en Remit", TOAST_TYPE.SUCCESS);
-      return;
+      const saveCount = Number(data?.save_count || 1);
+      const statusValue = String(data?.status || "").toUpperCase();
+      const hasProcessingError = Boolean(data?.last_processing_error);
+      const hasMergeSuggestion = Boolean(data?.metadata_json?.merge_suggestion);
+
+      let toastMessage = "Guardado en Remit";
+      if (saveCount > 1) {
+        toastMessage = `Ya existia. Guardado x${saveCount}`;
+      }
+      if (statusValue === "PENDING" && hasProcessingError) {
+        toastMessage = "Guardado en PENDING. Reproceso automatico en curso";
+      } else if (statusValue === "PROCESSED") {
+        toastMessage = `${toastMessage}. Clasificado automaticamente`;
+      } else if (statusValue === "ORGANIZED") {
+        toastMessage = `${toastMessage}. Organizado`;
+      }
+      if (hasMergeSuggestion) {
+        toastMessage = `${toastMessage}. Merge sugerido disponible`;
+      }
+
+      await sendToastToActiveTab(toastMessage, TOAST_TYPE.SUCCESS);
+      return { status: "ok", message: toastMessage, item: data };
     }
 
     if (response.status === 401) {
       await removeStorage(["access_token"]);
       await sendToastToActiveTab("Tu sesion ha caducado", TOAST_TYPE.ERROR);
-      return;
+      return { status: "unauthorized", message: "Tu sesion ha caducado" };
     }
 
     await sendToastToActiveTab("Error al guardar en el cerebro", TOAST_TYPE.ERROR);
+    return { status: "error", message: "Error al guardar en el cerebro" };
   } catch (error) {
     console.error("Remit backend error", error);
     await sendToastToActiveTab("Error de conexion con el servidor", TOAST_TYPE.ERROR);
+    return { status: "error", message: "Error de conexion con el servidor" };
   }
 }
 
@@ -229,15 +258,15 @@ async function getYoutubeRecommendations(payload) {
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     if (request.action === ACTIONS.SAVE_MANUAL) {
-      await sendToBackend(request.payload);
-      sendResponse({ status: "ok" });
+      const result = await sendToBackend(request.payload);
+      sendResponse(result || { status: "error", message: "Error inesperado" });
       return;
     }
 
     if (request.action === ACTIONS.SAVE_INBOX) {
       const payload = await buildPayloadFromInboxUrl(request);
-      await sendToBackend(payload);
-      sendResponse({ status: "ok" });
+      const result = await sendToBackend(payload);
+      sendResponse(result || { status: "error", message: "Error inesperado" });
       return;
     }
 

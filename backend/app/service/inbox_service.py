@@ -1,19 +1,29 @@
 from __future__ import annotations
 
+import hashlib
+import os
 import re
+import threading
+import time
 from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.models.inbox_item import InboxItem, InboxItemType, InboxStatus
+from app.models.text_merge_history import TextMergeHistory
 from app.schemas.inbox import (
     InboxConfirmOrganization,
     InboxCreate,
+    MergeApplyRequest,
+    MergeHistoryRead,
+    MergeRejectRequest,
     InboxRecommendationRead,
+    TextMergeSuggestionRead,
     InboxUpdate,
     YouTubeRecommendationRead,
 )
+from app.db.database import engine
 from app.service.directory_service import DirectoryService
 from app.service.inbox_ingest_service import InboxIngestionService
 from app.service.location_service import LocationService
@@ -23,6 +33,7 @@ from app.utils.geo import distance_km, validate_location_pair
 class InboxService:
     _REINGEST_FIELDS = {"item_type", "url", "file_base64", "mime_type"}
     _TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]{3,}")
+    _MERGE_MIN_SIMILARITY = 0.82
 
     def __init__(self):
         self.ingestion_service = InboxIngestionService()
@@ -34,9 +45,75 @@ class InboxService:
         return session.exec(statement).first()
 
     def create_item(self, session: Session, *, user_id: int, payload: InboxCreate) -> InboxItem:
-        processed = self.ingestion_service.process(payload)
         location_lat, location_lon = validate_location_pair(payload.location_lat, payload.location_lon)
         location_city = self._resolve_city(location_lat, location_lon)
+        now = datetime.now(timezone.utc)
+
+        processed = None
+        attempts = 0
+        last_error: str | None = None
+        for _ in range(2):
+            attempts += 1
+            try:
+                processed = self.ingestion_service.process(payload)
+                break
+            except Exception as exc:  # noqa: PERF203
+                last_error = str(exc)
+
+        if processed is None:
+            fallback_title = payload.title or self._title_from_payload(payload)
+            fallback_content = (payload.content or "").strip()
+            fallback_url = payload.url
+
+            item = InboxItem(
+                user_id=user_id,
+                source=payload.source,
+                item_type=payload.item_type,
+                title=fallback_title,
+                content=fallback_content,
+                content_hash=self._content_hash(fallback_content),
+                dedupe_key=self._build_dedupe_key(payload.item_type, fallback_url, None, fallback_content),
+                url=fallback_url,
+                location_lat=location_lat,
+                location_lon=location_lon,
+                location_city=location_city,
+                status=InboxStatus.PENDING,
+                processing_attempts=attempts,
+                last_processing_error=self._compact_error(last_error),
+            )
+            session.add(item)
+            session.commit()
+            session.refresh(item)
+            self._schedule_background_retry(item.id, user_id, payload.model_dump())
+            return item
+
+        content_hash = self._content_hash(processed.content)
+        dedupe_key = self._build_dedupe_key(
+            payload.item_type,
+            processed.url,
+            processed.metadata_json,
+            processed.content,
+        )
+        duplicate = self._find_duplicate(
+            session,
+            user_id=user_id,
+            item_type=payload.item_type,
+            dedupe_key=dedupe_key,
+            content_hash=content_hash,
+        )
+        if duplicate:
+            duplicate.save_count += 1
+            duplicate.created_at = now
+            duplicate.processing_attempts = max(duplicate.processing_attempts, attempts)
+            duplicate.last_processing_error = None
+            if location_lat is not None and location_lon is not None:
+                duplicate.location_lat = location_lat
+                duplicate.location_lon = location_lon
+                duplicate.location_city = location_city
+            session.add(duplicate)
+            session.commit()
+            session.refresh(duplicate)
+            return duplicate
 
         item = InboxItem(
             user_id=user_id,
@@ -44,6 +121,8 @@ class InboxService:
             item_type=payload.item_type,
             title=processed.title,
             content=processed.content,
+            content_hash=content_hash,
+            dedupe_key=dedupe_key,
             url=processed.url,
             location_lat=location_lat,
             location_lon=location_lon,
@@ -53,11 +132,15 @@ class InboxService:
             mime_type=processed.mime_type,
             metadata_json=processed.metadata_json,
             status=InboxStatus.PENDING,
+            processing_attempts=attempts,
+            last_processing_error=None,
         )
         session.add(item)
         session.commit()
         session.refresh(item)
-        return self.directory_service.suggest_directory_for_item(session, user_id, item)
+        item = self.directory_service.suggest_directory_for_item(session, user_id, item)
+        self._attach_best_merge_suggestion(session, user_id=user_id, item=item)
+        return item
 
     def list_items(
         self,
@@ -172,6 +255,174 @@ class InboxService:
             for score, item in ranked[:limit]
         ]
 
+    def list_text_merge_suggestions(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        limit: int = 20,
+    ) -> list[TextMergeSuggestionRead]:
+        statement = (
+            select(InboxItem)
+            .where(InboxItem.user_id == user_id, InboxItem.item_type == InboxItemType.TEXT)
+            .order_by(InboxItem.created_at.desc())
+        )
+        items = list(session.exec(statement).all())
+        suggestions: list[TextMergeSuggestionRead] = []
+
+        for source in items:
+            source_meta = source.metadata_json or {}
+            if source_meta.get("merged_into_id"):
+                continue
+            rejected_ids = self._extract_rejected_target_ids(source_meta)
+            target, score = self._best_merge_target_for_item(source, items, rejected_ids=rejected_ids)
+            if not target or score < self._MERGE_MIN_SIMILARITY:
+                continue
+            preview = self._build_merge_preview(source, target)
+            suggestions.append(
+                TextMergeSuggestionRead(
+                    source_item=source,
+                    target_item=target,
+                    similarity_score=round(score, 4),
+                    preview_markdown=preview,
+                )
+            )
+            if len(suggestions) >= limit:
+                break
+        return suggestions
+
+    def apply_text_merge(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        source_item: InboxItem,
+        payload: MergeApplyRequest,
+    ) -> MergeHistoryRead:
+        if source_item.item_type != InboxItemType.TEXT:
+            raise ValueError("Solo se permite merge para items TEXT")
+
+        target = self.get_owned_item(session, item_id=payload.target_item_id, user_id=user_id)
+        if not target:
+            raise ValueError("Target item not found")
+        if target.item_type != InboxItemType.TEXT:
+            raise ValueError("Target item must be TEXT")
+        if target.id == source_item.id:
+            raise ValueError("source y target no pueden ser el mismo item")
+
+        preview = self._build_merge_preview(source_item, target)
+        history = TextMergeHistory(
+            user_id=user_id,
+            source_item_id=source_item.id,
+            target_item_id=target.id,
+            preview_markdown=preview,
+            snapshot_target_title=target.title,
+            snapshot_target_content=target.content or "",
+        )
+        session.add(history)
+        session.flush()
+
+        merged_content = self._merge_text_content(target.content or "", source_item.content or "")
+        target.content = merged_content
+        target.content_hash = self._content_hash(merged_content)
+        target.save_count += max(1, source_item.save_count)
+        target.created_at = datetime.now(timezone.utc)
+
+        source_meta = dict(source_item.metadata_json or {})
+        source_meta["merged_into_id"] = target.id
+        source_meta["merge_history_id"] = history.id
+        source_item.metadata_json = source_meta
+        source_item.status = InboxStatus.ORGANIZED
+
+        session.add(target)
+        session.add(source_item)
+        session.commit()
+        session.refresh(history)
+        return MergeHistoryRead.model_validate(history)
+
+    def reject_text_merge_suggestion(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        source_item: InboxItem,
+        payload: MergeRejectRequest,
+    ) -> InboxItem:
+        if source_item.item_type != InboxItemType.TEXT:
+            raise ValueError("Solo se permite rechazar merge para items TEXT")
+
+        target = self.get_owned_item(session, item_id=payload.target_item_id, user_id=user_id)
+        if not target:
+            raise ValueError("Target item not found")
+        if target.item_type != InboxItemType.TEXT:
+            raise ValueError("Target item must be TEXT")
+        if target.id == source_item.id:
+            raise ValueError("source y target no pueden ser el mismo item")
+
+        metadata = dict(source_item.metadata_json or {})
+        rejected_ids = metadata.get("merge_rejected_target_ids") or []
+        normalized: list[int] = []
+        for value in rejected_ids:
+            try:
+                parsed = int(value)
+                if parsed > 0 and parsed not in normalized:
+                    normalized.append(parsed)
+            except Exception:
+                continue
+        if target.id not in normalized:
+            normalized.append(target.id)
+        metadata["merge_rejected_target_ids"] = normalized
+
+        suggestion = metadata.get("merge_suggestion") or {}
+        if isinstance(suggestion, dict) and suggestion.get("target_item_id") == target.id:
+            metadata.pop("merge_suggestion", None)
+
+        source_item.metadata_json = metadata
+        session.add(source_item)
+        session.commit()
+        session.refresh(source_item)
+        self._attach_best_merge_suggestion(session, user_id=user_id, item=source_item)
+        session.refresh(source_item)
+        return source_item
+
+    def revert_text_merge(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        history_id: int,
+    ) -> MergeHistoryRead:
+        history = session.get(TextMergeHistory, history_id)
+        if not history or history.user_id != user_id:
+            raise ValueError("Merge history not found")
+        if history.reverted_at is not None:
+            raise ValueError("Merge history already reverted")
+
+        target = self.get_owned_item(session, item_id=history.target_item_id, user_id=user_id)
+        source = self.get_owned_item(session, item_id=history.source_item_id, user_id=user_id)
+        if not target or not source:
+            raise ValueError("Source or target item not found")
+
+        restored_content = history.snapshot_target_content or ""
+        target.title = history.snapshot_target_title
+        target.content = restored_content
+        target.content_hash = self._content_hash(restored_content)
+
+        source_meta = dict(source.metadata_json or {})
+        if source_meta.get("merged_into_id") == target.id:
+            source_meta.pop("merged_into_id", None)
+        source_meta.pop("merge_history_id", None)
+        source.metadata_json = source_meta or None
+        source.status = InboxStatus.PROCESSED
+
+        history.reverted_at = datetime.now(timezone.utc)
+        session.add(history)
+        session.add(target)
+        session.add(source)
+        session.commit()
+        session.refresh(history)
+        return MergeHistoryRead.model_validate(history)
+
     def update_item(self, session: Session, *, user_id: int, item: InboxItem, payload: InboxUpdate) -> InboxItem:
         update_data = payload.model_dump(exclude_unset=True)
         has_lat = "location_lat" in update_data
@@ -263,6 +514,224 @@ class InboxService:
             item=item,
             directory_id=payload.directory_id,
             directory_name=payload.directory_name,
+        )
+
+    def _schedule_background_retry(self, item_id: int, user_id: int, payload_data: dict) -> None:
+        if os.getenv("PYTEST_CURRENT_TEST"):
+            return
+
+        def _runner():
+            delays = (3, 8, 20)
+            for delay in delays:
+                time.sleep(delay)
+                with Session(engine) as retry_session:
+                    item = retry_session.get(InboxItem, item_id)
+                    if not item or item.user_id != user_id or item.status != InboxStatus.PENDING:
+                        return
+                    try:
+                        payload = InboxCreate(**payload_data)
+                        processed = self.ingestion_service.process(payload)
+                        item.title = processed.title
+                        item.content = processed.content
+                        item.content_hash = self._content_hash(processed.content)
+                        item.url = processed.url
+                        item.preview_base64 = processed.preview_base64
+                        item.favicon_base64 = processed.favicon_base64
+                        item.mime_type = processed.mime_type
+                        item.metadata_json = processed.metadata_json
+                        item.processing_attempts += 1
+                        item.last_processing_error = None
+                        retry_session.add(item)
+                        retry_session.commit()
+                        retry_session.refresh(item)
+                        self.directory_service.suggest_directory_for_item(retry_session, user_id, item)
+                        self._attach_best_merge_suggestion(retry_session, user_id=user_id, item=item)
+                        return
+                    except Exception as exc:  # noqa: PERF203
+                        item.processing_attempts += 1
+                        item.last_processing_error = self._compact_error(str(exc))
+                        retry_session.add(item)
+                        retry_session.commit()
+
+        threading.Thread(target=_runner, daemon=True).start()
+
+    def _find_duplicate(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        item_type: InboxItemType,
+        dedupe_key: str | None,
+        content_hash: str | None,
+    ) -> InboxItem | None:
+        if dedupe_key:
+            statement = (
+                select(InboxItem)
+                .where(
+                    InboxItem.user_id == user_id,
+                    InboxItem.item_type == item_type,
+                    InboxItem.dedupe_key == dedupe_key,
+                )
+                .order_by(InboxItem.created_at.desc())
+            )
+            existing = session.exec(statement).first()
+            if existing:
+                return existing
+
+        if item_type == InboxItemType.TEXT and content_hash:
+            statement = (
+                select(InboxItem)
+                .where(
+                    InboxItem.user_id == user_id,
+                    InboxItem.item_type == InboxItemType.TEXT,
+                    InboxItem.content_hash == content_hash,
+                )
+                .order_by(InboxItem.created_at.desc())
+            )
+            return session.exec(statement).first()
+
+        return None
+
+    def _build_dedupe_key(
+        self,
+        item_type: InboxItemType,
+        url: str | None,
+        metadata: dict | None,
+        content: str | None,
+    ) -> str | None:
+        if item_type == InboxItemType.YOUTUBE:
+            video_id = ""
+            if metadata:
+                video_id = str(metadata.get("video_id") or "").strip()
+            if not video_id:
+                video_id = self._extract_youtube_video_id(url)
+            return f"youtube:{video_id.lower()}" if video_id else None
+
+        if url:
+            return f"url:{self._normalize_url(url)}"
+
+        if item_type == InboxItemType.TEXT and content:
+            return f"text:{self._content_hash(content)}"
+
+        return None
+
+    def _content_hash(self, content: str | None) -> str | None:
+        if not content:
+            return None
+        normalized = " ".join(content.lower().split())
+        if not normalized:
+            return None
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def _normalize_url(self, url: str) -> str:
+        value = (url or "").strip().lower()
+        value = re.sub(r"[#?].*$", "", value)
+        value = value.rstrip("/")
+        return value
+
+    def _title_from_payload(self, payload: InboxCreate) -> str:
+        if payload.title:
+            return payload.title
+        if payload.url:
+            return payload.url
+        return f"{payload.item_type.value} item"
+
+    def _compact_error(self, error: str | None) -> str | None:
+        if not error:
+            return None
+        return str(error).strip()[:500]
+
+    def _attach_best_merge_suggestion(self, session: Session, *, user_id: int, item: InboxItem) -> None:
+        if item.item_type != InboxItemType.TEXT:
+            return
+        statement = (
+            select(InboxItem)
+            .where(
+                InboxItem.user_id == user_id,
+                InboxItem.item_type == InboxItemType.TEXT,
+                InboxItem.id != item.id,
+            )
+            .order_by(InboxItem.created_at.desc())
+        )
+        others = list(session.exec(statement).all())
+        rejected_ids = self._extract_rejected_target_ids(item.metadata_json)
+        target, score = self._best_merge_target_for_item(item, others, rejected_ids=rejected_ids)
+        if not target or score < self._MERGE_MIN_SIMILARITY:
+            return
+
+        metadata = dict(item.metadata_json or {})
+        metadata["merge_suggestion"] = {
+            "target_item_id": target.id,
+            "similarity_score": round(score, 4),
+            "preview_markdown": self._build_merge_preview(item, target),
+        }
+        item.metadata_json = metadata
+        session.add(item)
+        session.commit()
+
+    def _best_merge_target_for_item(
+        self,
+        source: InboxItem,
+        candidates: list[InboxItem],
+        *,
+        rejected_ids: set[int] | None = None,
+    ) -> tuple[InboxItem | None, float]:
+        best_item = None
+        best_score = 0.0
+        source_tokens = self._tokens(source.content or source.title or "")
+        rejected = rejected_ids or set()
+        for candidate in candidates:
+            if candidate.id == source.id:
+                continue
+            if candidate.id in rejected:
+                continue
+            candidate_meta = candidate.metadata_json or {}
+            if candidate_meta.get("merged_into_id"):
+                continue
+            candidate_tokens = self._tokens(candidate.content or candidate.title or "")
+            score = self._token_overlap(source_tokens, candidate_tokens)
+            if score > best_score:
+                best_score = score
+                best_item = candidate
+        return best_item, best_score
+
+    def _extract_rejected_target_ids(self, metadata: dict | None) -> set[int]:
+        if not isinstance(metadata, dict):
+            return set()
+        raw_values = metadata.get("merge_rejected_target_ids") or []
+        result: set[int] = set()
+        for value in raw_values:
+            try:
+                parsed = int(value)
+                if parsed > 0:
+                    result.add(parsed)
+            except Exception:
+                continue
+        return result
+
+    def _merge_text_content(self, target_content: str, source_content: str) -> str:
+        chunks = [chunk.strip() for chunk in [target_content, source_content] if chunk and chunk.strip()]
+        if not chunks:
+            return ""
+        unique_chunks: list[str] = []
+        seen = set()
+        for chunk in chunks:
+            key = " ".join(chunk.lower().split())
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_chunks.append(chunk)
+        return "\n\n".join(unique_chunks)
+
+    def _build_merge_preview(self, source: InboxItem, target: InboxItem) -> str:
+        source_content = (source.content or "").strip()
+        target_content = (target.content or "").strip()
+        merged = self._merge_text_content(target_content, source_content)
+        return (
+            f"## Merge Suggestion\n\n"
+            f"- Source: #{source.id} {source.title or ''}\n"
+            f"- Target: #{target.id} {target.title or ''}\n\n"
+            f"### Result Preview\n\n{merged[:1400]}"
         )
 
     def _resolve_city(self, lat: float | None, lon: float | None) -> str | None:

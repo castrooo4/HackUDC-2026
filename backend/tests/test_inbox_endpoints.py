@@ -723,24 +723,17 @@ def test_directory_tree_has_defaults(client, auth_headers):
 
 
 def test_confirm_organization_inbox_item(client, auth_headers):
+    raw_pdf = _build_pdf_bytes()
+    import base64
+
     created = client.post(
         "/inbox",
-        json={"item_type": "PDF", "file_base64": "data:application/pdf;base64,JVBERi0xLjcKJQ=="},
+        json={
+            "item_type": "PDF",
+            "file_base64": "data:application/pdf;base64," + base64.b64encode(raw_pdf).decode("ascii"),
+        },
         headers=auth_headers,
     )
-    # El base64 mínimo puede fallar parseo PDF, así que usamos uno válido si hace falta.
-    if created.status_code != 201:
-        raw_pdf = _build_pdf_bytes()
-        import base64
-
-        created = client.post(
-            "/inbox",
-            json={
-                "item_type": "PDF",
-                "file_base64": "data:application/pdf;base64," + base64.b64encode(raw_pdf).decode("ascii"),
-            },
-            headers=auth_headers,
-        )
     assert created.status_code == 201
     item_id = created.json()["id"]
 
@@ -852,3 +845,143 @@ def test_patch_allows_moving_item_to_existing_directory(client, auth_headers):
     )
     assert moved.status_code == 200
     assert moved.json()["directory_id"] == target_directory_id
+
+
+def test_text_dedup_increments_save_count_and_reuses_item(client, auth_headers):
+    first = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota de arquitectura backend para kelea"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 201
+    first_data = first.json()
+    assert first_data["save_count"] == 1
+
+    second = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota de arquitectura backend para kelea"},
+        headers=auth_headers,
+    )
+    assert second.status_code == 201
+    second_data = second.json()
+    assert second_data["id"] == first_data["id"]
+    assert second_data["save_count"] == 2
+
+
+def test_merge_suggestions_apply_and_revert_flow(client, auth_headers):
+    target = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "Arquitectura backend modular con fastapi servicios routers y validacion",
+        },
+        headers=auth_headers,
+    )
+    source = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "backend modular fastapi servicios routers validacion",
+        },
+        headers=auth_headers,
+    )
+    assert target.status_code == 201
+    assert source.status_code == 201
+
+    source_id = source.json()["id"]
+    target_id = target.json()["id"]
+
+    suggestions = client.get("/inbox/merge-suggestions?limit=20", headers=auth_headers)
+    assert suggestions.status_code == 200
+    suggestions_data = suggestions.json()
+    assert any(
+        row["source_item"]["id"] == source_id and row["target_item"]["id"] == target_id
+        for row in suggestions_data
+    )
+
+    applied = client.post(
+        f"/inbox/{source_id}/merge-apply",
+        json={"target_item_id": target_id},
+        headers=auth_headers,
+    )
+    assert applied.status_code == 200
+    history_id = applied.json()["id"]
+
+    merged_target = client.get(f"/inbox/{target_id}", headers=auth_headers)
+    assert merged_target.status_code == 200
+    merged_content = merged_target.json()["content"].lower()
+    assert "arquitectura backend modular" in merged_content
+    assert "fastapi servicios routers" in merged_content
+
+    reverted = client.post(f"/inbox/merge-history/{history_id}/revert", headers=auth_headers)
+    assert reverted.status_code == 200
+    assert reverted.json()["reverted_at"] is not None
+
+    restored_target = client.get(f"/inbox/{target_id}", headers=auth_headers)
+    assert restored_target.status_code == 200
+    assert restored_target.json()["content"] == target.json()["content"]
+
+
+def test_merge_reject_hides_pair_from_future_suggestions(client, auth_headers):
+    target = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "Arquitectura backend modular con fastapi servicios routers y validacion",
+        },
+        headers=auth_headers,
+    )
+    source = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "backend modular fastapi servicios routers validacion",
+        },
+        headers=auth_headers,
+    )
+    assert target.status_code == 201
+    assert source.status_code == 201
+
+    source_id = source.json()["id"]
+    target_id = target.json()["id"]
+
+    before = client.get("/inbox/merge-suggestions?limit=20", headers=auth_headers)
+    assert before.status_code == 200
+    assert any(
+        row["source_item"]["id"] == source_id and row["target_item"]["id"] == target_id
+        for row in before.json()
+    )
+
+    rejected = client.post(
+        f"/inbox/{source_id}/merge-reject",
+        json={"target_item_id": target_id},
+        headers=auth_headers,
+    )
+    assert rejected.status_code == 200
+    rejected_meta = rejected.json().get("metadata_json") or {}
+    assert target_id in (rejected_meta.get("merge_rejected_target_ids") or [])
+
+    after = client.get("/inbox/merge-suggestions?limit=20", headers=auth_headers)
+    assert after.status_code == 200
+    assert not any(
+        row["source_item"]["id"] == source_id and row["target_item"]["id"] == target_id
+        for row in after.json()
+    )
+
+
+def test_create_item_falls_back_to_pending_and_tracks_error_when_processing_fails(client, monkeypatch, auth_headers):
+    def always_fail(_payload):
+        raise RuntimeError("forced processing failure for test")
+
+    monkeypatch.setattr("app.routers.inbox.inbox_service.ingestion_service.process", always_fail)
+
+    response = client.post(
+        "/inbox",
+        json={"item_type": "WEB", "url": "https://example.com/failing"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "PENDING"
+    assert data["processing_attempts"] == 2
+    assert "forced processing failure" in (data["last_processing_error"] or "")

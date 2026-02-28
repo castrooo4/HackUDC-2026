@@ -44,3 +44,24 @@ export const confirmOrganization = (itemId, option) => {
 
 export const listCities = () => apiFetch("/inbox/cities");
 export const listInboxByCity = (city) => apiFetch(`/inbox/cities/${encodeURIComponent(city)}/items`);
+
+export const listMergeSuggestions = (limit = 20) =>
+  apiFetch(`/inbox/merge-suggestions?limit=${encodeURIComponent(limit)}`);
+
+export const applyMergeSuggestion = (sourceItemId, targetItemId) =>
+  apiFetch(`/inbox/${sourceItemId}/merge-apply`, {
+    method: "POST",
+    body: JSON.stringify({ target_item_id: targetItemId }),
+  });
+
+export const rejectMergeSuggestion = (sourceItemId, targetItemId) =>
+  apiFetch(`/inbox/${sourceItemId}/merge-reject`, {
+    method: "POST",
+    body: JSON.stringify({ target_item_id: targetItemId }),
+  });
+
+export const revertMergeHistory = (historyId) =>
+  apiFetch(`/inbox/merge-history/${historyId}/revert`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });

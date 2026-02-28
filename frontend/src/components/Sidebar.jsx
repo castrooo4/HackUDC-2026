@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Sparkles, Folder, ChevronDown, MapPinned, Building2 } from "lucide-react";
+import { Home, Sparkles, Folder, ChevronDown, MapPinned, Building2, GitMerge } from "lucide-react";
 
 import { getDirectoriesTree } from "../api/inbox";
 import logoImg from "../assets/remit-logo.png";
@@ -64,6 +64,11 @@ export default function Sidebar() {
         <Link to="/ciudades" style={location.pathname === "/ciudades" ? activeLinkStyle : linkStyle}>
           <Building2 size={20} />
           <span>Ciudades</span>
+        </Link>
+
+        <Link to="/merge" style={location.pathname === "/merge" ? activeLinkStyle : linkStyle}>
+          <GitMerge size={20} />
+          <span>Merge</span>
         </Link>
 
         <div style={folderToggleStyle} onClick={handleToggleFolders}>

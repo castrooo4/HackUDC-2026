@@ -120,6 +120,8 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
       <div style={infoPadding}>
         <div style={sourceTagStyle}>{item.source || "inbox"}</div>
         <h4 style={titleStyle}>{item.title || `Nota #${item.id}`}</h4>
+        {(item.save_count || 1) > 1 ? <span style={tagStyle}>Guardado x{item.save_count}</span> : null}
+        {item.last_processing_error ? <span style={warnTagStyle}>Pendiente de reproceso</span> : null}
         {item.location_city ? <span style={tagStyle}>{item.location_city}</span> : null}
       </div>
     </div>
@@ -228,4 +230,15 @@ const tagStyle = {
   borderRadius: "8px",
   alignSelf: "flex-start",
   border: "1px solid rgba(70, 211, 126, 0.2)",
+};
+
+
+const warnTagStyle = {
+  fontSize: "0.7rem",
+  background: "rgba(255, 170, 90, 0.12)",
+  color: "#ffd6a8",
+  padding: "4px 10px",
+  borderRadius: "8px",
+  alignSelf: "flex-start",
+  border: "1px solid rgba(255, 170, 90, 0.3)",
 };
