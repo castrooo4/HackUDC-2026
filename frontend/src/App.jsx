@@ -10,6 +10,7 @@ import LoginForm from "./components/LoginForm.jsx";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Novedades from "./views/Novedades";
+import CarpetaView from "./views/CarpetaView";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
@@ -72,7 +73,7 @@ export default function App() {
   async function handleCreate(payload) {
     try {
       const newItem = await createInboxItem(payload);
-      setItems(prev => [newItem, ...prev]); 
+      setItems(prev => [newItem, ...prev]);
     } catch (e) {
       console.error("Error al crear:", e);
       // Opcional: Mock en caso de error de red para pruebas visuales
@@ -111,7 +112,7 @@ export default function App() {
     <Router>
       <div className={`app ${isLight ? "light-mode" : ""}`} style={{ display: "flex" }}>
         <Sidebar />
-        
+
         {/* Añadimos un margen izquierdo para que el contenido no quede debajo del Sidebar */}
         <div className="main-content" style={{ flex: 1, marginLeft: "240px" }}>
           <div className="bg" />
@@ -130,6 +131,8 @@ export default function App() {
 
               {/* Esta es la nueva pestaña */}
               <Route path="/novedades" element={<Novedades />} />
+
+              <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} />} />
             </Routes>
           </div>
         </div>
