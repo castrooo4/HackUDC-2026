@@ -1,255 +1,294 @@
-// --- 1. FUNCIÓN CENTRAL PARA ENVIAR AL BACKEND ---
-async function sendToRemitBackend(payload) {
-  const data = await chrome.storage.local.get(['access_token', 'use_location']);
-  const token = data.access_token;
+const API_BASE_URL = "http://127.0.0.1:8000";
+const GEO_IP_URL = "https://get.geojs.io/v1/ip/geo.json";
 
-  console.log("Memoria de Chrome dice -> Token existe:", !!token, "| Usar Ubicación:", data.use_location)
-  // --- LA MAGIA DEL AVISO VISUAL (Si no hay sesión) ---
-  if (!token) {
-    console.warn("Remit: Intento de guardado sin iniciar sesión.");
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: "SHOW_TOAST",
-          message: "⚠️ Inicia sesión en Remit para guardar",
-          type: "error"
-        });
-      }
-    });
-    return;
-  }
-  if (data.use_location) {
-      try {
-        const locResp = await fetch('https://get.geojs.io/v1/ip/geo.json');
-        if (locResp.ok) {
-          const locData = await locResp.json();
-          if (locData.latitude && locData.longitude) {
-            // GeoJS devuelve texto ("43.36"), así que lo pasamos a número decimal (parseFloat)
-            payload.location_lat = parseFloat(locData.latitude);
-            payload.location_lon = parseFloat(locData.longitude);
-          }
-        } else {
-          console.warn("Remit: La API de ubicación no respondió bien.");
-        }
-      } catch (error) {
-        console.warn("Remit: No se pudo obtener la ubicación por IP", error);
-      }
-    }
+const ACTIONS = {
+  SAVE_MANUAL: "SAVE_MANUAL",
+  SAVE_INBOX: "SAVE_INBOX",
+  INIT_SCREENSHOT: "INIT_SCREENSHOT",
+  START_CROP_UI: "START_CROP_UI",
+  SHOW_TOAST: "SHOW_TOAST",
+};
 
-  console.log("🚀 PAQUETE ENVIADO AL BACKEND:", payload)
-  // --- PETICIÓN AL BACKEND ---
-  fetch("http://127.0.0.1:8000/inbox", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify(payload)
-  })
-    .then(response => {
-      // Manejamos la respuesta para mostrar el Toast y avisar a la web
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]) return;
+const TOAST_TYPE = {
+  SUCCESS: "success",
+  ERROR: "error",
+};
 
-        if (response.ok) {
-          // 👇 EL TOQUE MÁGICO DE WALKIE-TALKIE PARA ACTUALIZAR LA WEB 👇
-          chrome.storage.local.set({ remit_last_saved: Date.now() });
-
-          // Aviso visual de éxito
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: "SHOW_TOAST",
-            message: "¡Guardado en Remit!",
-            type: "success"
-          });
-        } else if (response.status === 401) {
-          // Token caducado
-          console.error("Remit: Token expirado o inválido.");
-          chrome.storage.local.remove(['access_token']);
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: "SHOW_TOAST",
-            message: "⚠️ Tu sesión ha caducado",
-            type: "error"
-          });
-        } else {
-          // Otro error del servidor (ej. 500 o 422)
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: "SHOW_TOAST",
-            message: "❌ Error al guardar en el cerebro",
-            type: "error"
-          });
-        }
-      });
-    })
-    .catch(err => {
-      console.error("Error Remit:", err);
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: "SHOW_TOAST",
-            message: "❌ Error de conexión con el servidor",
-            type: "error"
-          });
-        }
-      });
-    });
+function getStorage(keys) {
+  return chrome.storage.local.get(keys);
 }
 
-// --- 2. FUNCIÓN MÁGICA PARA CONVERTIR A BASE64 ---
+function setStorage(value) {
+  return chrome.storage.local.set(value);
+}
+
+function removeStorage(keys) {
+  return chrome.storage.local.remove(keys);
+}
+
+async function getActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tabs?.[0] ?? null;
+}
+
+async function sendToastToActiveTab(message, type) {
+  const tab = await getActiveTab();
+  if (!tab?.id) return;
+
+  chrome.tabs.sendMessage(tab.id, {
+    action: ACTIONS.SHOW_TOAST,
+    message,
+    type,
+  });
+}
+
+async function fetchLocationFromIp() {
+  try {
+    const response = await fetch(GEO_IP_URL);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const lat = Number.parseFloat(data.latitude);
+    const lon = Number.parseFloat(data.longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch (error) {
+    console.warn("Remit: could not get IP location", error);
+    return null;
+  }
+}
+
 async function urlToBase64(url) {
   try {
     const response = await fetch(url);
+    if (!response.ok) return null;
+
     const blob = await response.blob();
-    return new Promise((resolve) => {
+    return await new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error("Remit: Error al convertir a Base64", error);
+    console.error("Remit: error converting URL to base64", error);
     return null;
   }
 }
 
-// --- 3. ESCUCHADOR DE LA EXTENSIÓN (Botones, Popup, Widget) ---
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (request.action === "SAVE_MANUAL") {
-    sendToRemitBackend(request.payload);
-    sendResponse({ status: "ok" });
-    return true;
+function inferItemTypeFromUrl(url) {
+  const value = (url || "").toLowerCase();
+  if (value.includes("youtube.com/watch") || value.includes("youtu.be/") || value.includes("/shorts/")) {
+    return "YOUTUBE";
+  }
+  if (value.endsWith(".pdf")) {
+    return "PDF";
+  }
+  if (value.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) {
+    return "IMAGE";
+  }
+  return "WEB";
+}
+
+async function addLocationIfEnabled(payload) {
+  const { use_location: useLocation } = await getStorage(["use_location"]);
+  if (!useLocation) return payload;
+
+  const geo = await fetchLocationFromIp();
+  if (!geo) return payload;
+
+  return {
+    ...payload,
+    location_lat: geo.lat,
+    location_lon: geo.lon,
+  };
+}
+
+async function sendToBackend(payload) {
+  const { access_token: token } = await getStorage(["access_token"]);
+
+  if (!token) {
+    console.warn("Remit: save attempted without active session");
+    await sendToastToActiveTab("⚠️ Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
+    return;
   }
 
-  if (request.action === "SAVE_INBOX") {
-    const url = request.url;
-    let payload = { source: "extension", url: url };
+  const payloadWithLocation = await addLocationIfEnabled(payload);
 
-    if (request.lat && request.lon) {
-      payload.location_lat = request.lat;
-      payload.location_lon = request.lon;
-    }
+  try {
+    const response = await fetch(`${API_BASE_URL}/inbox`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payloadWithLocation),
+    });
 
-    // 1. Si es YouTube
-    if (url.includes("youtube.com/watch") || url.includes("youtu.be/") || url.includes("/shorts/")) {
-      payload.item_type = "YOUTUBE";
-    }
-    // 2. Si es una pestaña de imagen (¡LA MAGIA NUEVA!)
-    else if (request.isImageTab || url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) {
-      payload.item_type = "IMAGE";
-      // Intentamos pasarla a Base64 para que el backend la reciba procesada
-      const base64 = await urlToBase64(url);
-      if (base64) {
-        payload.file_base64 = base64;
-        delete payload.url; // Si mandamos el archivo, no hace falta la URL
-      }
-    }
-    // 3. Si es un PDF
-    else if (url.toLowerCase().endsWith(".pdf")) {
-      payload.item_type = "PDF";
-    }
-    // 4. Por defecto: WEB
-    else {
-      payload.item_type = "WEB";
+    if (response.ok) {
+      await setStorage({ remit_last_saved: Date.now() });
+      await sendToastToActiveTab("Guardado en Remit", TOAST_TYPE.SUCCESS);
+      return;
     }
 
-    sendToRemitBackend(payload);
-    sendResponse({ status: "ok" });
-    return true;
+    if (response.status === 401) {
+      await removeStorage(["access_token"]);
+      await sendToastToActiveTab("⚠️ Tu sesion ha caducado", TOAST_TYPE.ERROR);
+      return;
+    }
+
+    await sendToastToActiveTab("❌ Error al guardar en el cerebro", TOAST_TYPE.ERROR);
+  } catch (error) {
+    console.error("Remit backend error", error);
+    await sendToastToActiveTab("❌ Error de conexion con el servidor", TOAST_TYPE.ERROR);
+  }
+}
+
+async function buildPayloadFromInboxUrl(request) {
+  const payload = {
+    source: "extension",
+    url: request.url,
+  };
+
+  if (request.lat && request.lon) {
+    payload.location_lat = request.lat;
+    payload.location_lon = request.lon;
   }
 
-  // Dentro de tu chrome.runtime.onMessage.addListener
-  if (request.action === "INIT_SCREENSHOT") {
-    console.log("Remit: Iniciando captura de pantalla...");
+  const inferredType = inferItemTypeFromUrl(request.url);
 
-    // Esperamos un pelín a que el popup se cierre del todo
-    setTimeout(() => {
-      chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
-        if (chrome.runtime.lastError) {
-          console.error("Error capturando pestaña:", chrome.runtime.lastError.message);
-          return;
-        }
-
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs[0]) {
-            console.log("Remit: Enviando imagen al content script del tab:", tabs[0].id);
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "START_CROP_UI",
-              image: dataUrl
-            });
-          }
-        });
-      });
-    }, 300); // 300ms de cortesía
-    return true;
+  if (request.isImageTab || inferredType === "IMAGE") {
+    payload.item_type = "IMAGE";
+    const base64 = await urlToBase64(request.url);
+    if (base64) {
+      payload.file_base64 = base64;
+      delete payload.url;
+    }
+    return payload;
   }
+
+  payload.item_type = inferredType;
+  return payload;
+}
+
+async function handleInitScreenshot() {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  chrome.tabs.captureVisibleTab(null, { format: "png" }, async (dataUrl) => {
+    if (chrome.runtime.lastError || !dataUrl) {
+      console.error("Remit screenshot error:", chrome.runtime.lastError?.message || "capture failed");
+      return;
+    }
+
+    const tab = await getActiveTab();
+    if (!tab?.id) return;
+
+    chrome.tabs.sendMessage(tab.id, {
+      action: ACTIONS.START_CROP_UI,
+      image: dataUrl,
+    });
+  });
+}
+
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  (async () => {
+    if (request.action === ACTIONS.SAVE_MANUAL) {
+      await sendToBackend(request.payload);
+      sendResponse({ status: "ok" });
+      return;
+    }
+
+    if (request.action === ACTIONS.SAVE_INBOX) {
+      const payload = await buildPayloadFromInboxUrl(request);
+      await sendToBackend(payload);
+      sendResponse({ status: "ok" });
+      return;
+    }
+
+    if (request.action === ACTIONS.INIT_SCREENSHOT) {
+      await handleInitScreenshot();
+      sendResponse({ status: "ok" });
+      return;
+    }
+
+    sendResponse({ status: "ignored" });
+  })();
+
+  return true;
 });
 
-// --- 4. CONFIGURACIÓN DEL MENÚ CONTEXTUAL (Click Derecho) ---
-
-// Crear las opciones en el menú
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "remit-save-text",
     title: "🧠 Guardar texto en Remit",
-    contexts: ["selection"]
+    contexts: ["selection"],
   });
   chrome.contextMenus.create({
     id: "remit-save-link",
     title: "🧠 Guardar enlace en Remit",
-    contexts: ["link"]
+    contexts: ["link"],
   });
   chrome.contextMenus.create({
     id: "remit-save-image",
     title: "🧠 Guardar imagen en Remit",
-    contexts: ["image"]
+    contexts: ["image"],
   });
   chrome.contextMenus.create({
     id: "remit-save-page",
-    title: "🧠 Guardar esta página en Remit",
-    contexts: ["page"]
+    title: "🧠 Guardar esta pagina en Remit",
+    contexts: ["page"],
   });
 });
 
-// Lógica de click derecho limpia (Sin llamadas dobles)
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  let payload = { source: "extension" };
+chrome.contextMenus.onClicked.addListener(async (info) => {
+  const basePayload = { source: "extension" };
 
-  // Ignoramos favicon, ya que el backend se encarga
   if (info.menuItemId === "remit-save-text") {
-    payload.item_type = "TEXT";
-    payload.content = info.selectionText;
-    sendToRemitBackend(payload);
+    await sendToBackend({
+      ...basePayload,
+      item_type: "TEXT",
+      content: info.selectionText,
+    });
+    return;
   }
-  else if (info.menuItemId === "remit-save-link") {
-    const url = info.linkUrl;
-    payload.item_type = url.toLowerCase().endsWith(".pdf") ? "PDF" : "WEB";
-    payload.url = url;
-    sendToRemitBackend(payload);
+
+  if (info.menuItemId === "remit-save-link") {
+    const type = inferItemTypeFromUrl(info.linkUrl);
+    await sendToBackend({
+      ...basePayload,
+      item_type: type === "IMAGE" ? "WEB" : type,
+      url: info.linkUrl,
+    });
+    return;
   }
-  else if (info.menuItemId === "remit-save-page") {
-    if (info.pageUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
-      const base64data = await urlToBase64(info.pageUrl);
-      if (base64data) {
-        payload.item_type = "IMAGE";
-        payload.file_base64 = base64data;
-        sendToRemitBackend(payload);
+
+  if (info.menuItemId === "remit-save-page") {
+    const type = inferItemTypeFromUrl(info.pageUrl);
+    if (type === "IMAGE") {
+      const base64 = await urlToBase64(info.pageUrl);
+      if (base64) {
+        await sendToBackend({ ...basePayload, item_type: "IMAGE", file_base64: base64 });
+        return;
       }
-    } else {
-      payload.item_type = "WEB";
-      payload.url = info.pageUrl;
-      sendToRemitBackend(payload);
     }
+
+    await sendToBackend({
+      ...basePayload,
+      item_type: type,
+      url: info.pageUrl,
+    });
+    return;
   }
-  else if (info.menuItemId === "remit-save-image") {
-    const base64data = await urlToBase64(info.srcUrl);
-    if (base64data) {
-      payload.item_type = "IMAGE";
-      payload.file_base64 = base64data;
-      sendToRemitBackend(payload);
-    } else {
-      payload.item_type = "IMAGE";
-      payload.url = info.srcUrl;
-      sendToRemitBackend(payload);
+
+  if (info.menuItemId === "remit-save-image") {
+    const base64 = await urlToBase64(info.srcUrl);
+    if (base64) {
+      await sendToBackend({ ...basePayload, item_type: "IMAGE", file_base64: base64 });
+      return;
     }
+
+    await sendToBackend({ ...basePayload, item_type: "IMAGE", url: info.srcUrl });
   }
 });
 
-console.log("Remit: Background Service Worker iniciado y limpio.");
+console.log("Remit background service worker ready");

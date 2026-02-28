@@ -1,7 +1,7 @@
 """Add location fields to inbox_item.
 
 Revision ID: 0009_add_location_to_inbox_item
-Revises: 0008_create_telegram_link_tables
+Revises: 0007_add_phone_number_to_user
 Create Date: 2026-02-28
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "0009_add_location_to_inbox_item"
-down_revision: Union[str, None] = "0008_create_telegram_link_tables"
+down_revision: Union[str, None] = "0007_add_phone_number_to_user"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -68,3 +68,7 @@ export const confirmOrganization = (itemId, option) => {
 
 export const getOrganizedInbox = () =>
   apiFetch("/inbox?status=ORGANIZED");
+
+export const listCities = () => apiFetch("/inbox/cities");
+export const listInboxByCity = (city) =>
+  apiFetch(`/inbox/cities/${encodeURIComponent(city)}/items`);

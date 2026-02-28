@@ -73,3 +73,31 @@ body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; 
   scrollbar-width: none;
   -ms-overflow-style: none; /* IE y Edge antiguo */
 }
+
+/* Leaflet custom pin: evita iconos rotos por assets */
+.remit-map-pin-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.remit-map-pin {
+  width: 20px;
+  height: 20px;
+  border-radius: 50% 50% 50% 0;
+  background: #46d37e;
+  border: 2px solid #e9fff2;
+  transform: rotate(-45deg);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+
+.remit-map-pin::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1f6b3f;
+  position: absolute;
+  top: 5px;
+  left: 5px;
+}

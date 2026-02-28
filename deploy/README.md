@@ -31,10 +31,6 @@ Workflow file:
    - `BACKEND_IMAGE`
    - `FRONTEND_IMAGE`
    - `DATABASE_URL` (SQLite file path in container)
-   - If using Telegram bot integration:
-     - `TELEGRAM_BOT_TOKEN`
-     - `TELEGRAM_WEBHOOK_SECRET` (optional but recommended)
-     - `TELEGRAM_LINK_CODE_TTL_MINUTES`
 5. Deploy the stack.
 
 ## 3) Access

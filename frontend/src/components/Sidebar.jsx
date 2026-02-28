@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getDirectoriesTree } from "../api/inbox";
-import { Home, Sparkles, Folder, ChevronDown } from "lucide-react";
+import { Home, Sparkles, Folder, ChevronDown, MapPinned, Building2 } from "lucide-react";
 import logoImg from "../assets/remit-logo.png";
 
 export default function Sidebar() {
@@ -59,6 +59,16 @@ export default function Sidebar() {
         <Link to="/novedades" style={location.pathname === "/novedades" ? activeLinkStyle : linkStyle}>
           <Sparkles size={20} /> 
           <span>Novedades</span>
+        </Link>
+
+        <Link to="/mapa" style={location.pathname === "/mapa" ? activeLinkStyle : linkStyle}>
+          <MapPinned size={20} />
+          <span>Mapa</span>
+        </Link>
+
+        <Link to="/ciudades" style={location.pathname === "/ciudades" ? activeLinkStyle : linkStyle}>
+          <Building2 size={20} />
+          <span>Ciudades</span>
         </Link>
 
         {/* EL BOTÓN DESPLEGABLE DE CARPETAS */}
