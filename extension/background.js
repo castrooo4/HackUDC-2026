@@ -18,19 +18,23 @@ async function sendToRemitBackend(payload) {
     });
     return;
   }
-  console.log("data.use_location", data.use_location);
   if (data.use_location) {
-    try {
-      const locResp = await fetch('https://ipapi.co/json/');
-      const locData = await locResp.json();
-      if (locData.latitude && locData.longitude) {
-        payload.location_lat = locData.latitude;
-        payload.location_lon = locData.longitude;
+      try {
+        const locResp = await fetch('https://get.geojs.io/v1/ip/geo.json');
+        if (locResp.ok) {
+          const locData = await locResp.json();
+          if (locData.latitude && locData.longitude) {
+            // GeoJS devuelve texto ("43.36"), así que lo pasamos a número decimal (parseFloat)
+            payload.location_lat = parseFloat(locData.latitude);
+            payload.location_lon = parseFloat(locData.longitude);
+          }
+        } else {
+          console.warn("Remit: La API de ubicación no respondió bien.");
+        }
+      } catch (error) {
+        console.warn("Remit: No se pudo obtener la ubicación por IP", error);
       }
-    } catch (error) {
-      console.warn("Remit: No se pudo obtener la ubicación por IP", error);
     }
-  }
 
   console.log("🚀 PAQUETE ENVIADO AL BACKEND:", payload)
   // --- PETICIÓN AL BACKEND ---
