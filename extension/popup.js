@@ -64,7 +64,7 @@ async function login() {
   const password = el("loginPass").value.trim();
 
   if (!email || !password) {
-    setStatus("⚠️ Email y contrasena requeridos");
+    setStatus("Email y contrasena requeridos");
     return;
   }
 
@@ -77,15 +77,15 @@ async function login() {
 
     const data = await response.json();
     if (!response.ok || !data?.access_token) {
-      setStatus("❌ Credenciales incorrectas");
+      setStatus("Credenciales incorrectas");
       return;
     }
 
     await setStorage({ [STORAGE_KEYS.ACCESS_TOKEN]: data.access_token });
-    setStatus("✅ Sesion iniciada");
+    setStatus("Sesion iniciada");
     setTimeout(() => showView(VIEWS.MAIN), 500);
   } catch (_error) {
-    setStatus("❌ Error de conexion con el servidor");
+    setStatus("Error de conexion con el servidor");
   }
 }
 
@@ -95,7 +95,7 @@ async function register() {
   const full_name = el("regName").value.trim();
 
   if (!email || !password || !full_name) {
-    setStatus("⚠️ Todos los campos son obligatorios");
+    setStatus("Todos los campos son obligatorios");
     return;
   }
 
@@ -109,17 +109,17 @@ async function register() {
     const data = await response.json();
     if (!response.ok) {
       if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
-        setStatus(`❌ Error: ${data.detail[0].msg}`);
+        setStatus(`Error: ${data.detail[0].msg}`);
       } else {
-        setStatus(`❌ ${data?.detail || "Error al registrar"}`);
+        setStatus(data?.detail || "Error al registrar");
       }
       return;
     }
 
-    setStatus("✅ Cuenta creada. Ya puedes iniciar sesion.");
+    setStatus("Cuenta creada. Ya puedes iniciar sesion.");
     setTimeout(() => el("toLogin").click(), 1200);
   } catch (_error) {
-    setStatus("❌ Error de conexion");
+    setStatus("Error de conexion");
   }
 }
 
@@ -135,7 +135,7 @@ function bindLocationToggle() {
 
   locationToggle.addEventListener("change", async (event) => {
     await setStorage({ [STORAGE_KEYS.USE_LOCATION]: event.target.checked });
-    setStatus(event.target.checked ? "✅ Ubicacion activada" : "Ubicacion desactivada");
+    setStatus(event.target.checked ? "Ubicacion activada" : "Ubicacion desactivada");
   });
 }
 
@@ -151,38 +151,58 @@ function detectItemTypeFromContent(content) {
 }
 
 function sendSaveMessage(payload) {
-  chrome.runtime.sendMessage(payload);
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(payload, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve({ status: "error", message: chrome.runtime.lastError.message || "Error en extension" });
+        return;
+      }
+      resolve(response || { status: "error", message: "Sin respuesta del background" });
+    });
+  });
 }
 
 function bindSaveActions() {
-  el("saveBtn").addEventListener("click", () => {
+  el("saveBtn").addEventListener("click", async () => {
     const content = el("content").value.trim();
     if (!content) {
-      setStatus("⚠️ Escribe algo primero.");
+      setStatus("Escribe algo primero");
       return;
     }
 
-    setStatus("✅ Enviando...");
+    setStatus("Enviando...");
     const type = detectItemTypeFromContent(content);
+    let result;
 
     if (type === "TEXT") {
-      sendSaveMessage({
+      result = await sendSaveMessage({
         action: "SAVE_MANUAL",
         payload: { source: "extension", item_type: "TEXT", content },
       });
     } else {
-      sendSaveMessage({ action: "SAVE_INBOX", url: content });
+      result = await sendSaveMessage({ action: "SAVE_INBOX", url: content });
     }
 
-    setTimeout(() => window.close(), 800);
+    if (result?.status === "ok") {
+      setStatus(result.message || "Guardado");
+      setTimeout(() => window.close(), 1000);
+      return;
+    }
+
+    setStatus(result?.message || "Error guardando");
   });
 
   el("autoSaveBtn").addEventListener("click", () => {
-    setStatus("✅ Pestana guardada");
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    setStatus("Guardando pestana...");
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (!tabs?.[0]?.url) return;
-      sendSaveMessage({ action: "SAVE_INBOX", url: tabs[0].url });
-      setTimeout(() => window.close(), 800);
+      const result = await sendSaveMessage({ action: "SAVE_INBOX", url: tabs[0].url });
+      if (result?.status === "ok") {
+        setStatus(result.message || "Guardado");
+        setTimeout(() => window.close(), 1000);
+        return;
+      }
+      setStatus(result?.message || "Error guardando");
     });
   });
 

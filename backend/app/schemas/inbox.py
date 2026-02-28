@@ -174,6 +174,11 @@ class InboxRead(BaseModel):
     item_type: InboxItemType
     title: Optional[str]
     content: str
+    content_hash: Optional[str] = None
+    dedupe_key: Optional[str] = None
+    save_count: int = 1
+    processing_attempts: int = 0
+    last_processing_error: Optional[str] = None
     url: Optional[str]
     location_lat: Optional[float] = Field(default=None, description="Latitud original capturada")
     location_lon: Optional[float] = Field(default=None, description="Longitud original capturada")
@@ -201,6 +206,32 @@ class InboxCityRead(BaseModel):
 class YouTubeRecommendationRead(BaseModel):
     item: InboxRead
     score: float = Field(description="Puntuacion de relevancia para ordenar recomendaciones")
+
+
+class TextMergeSuggestionRead(BaseModel):
+    source_item: InboxRead
+    target_item: InboxRead
+    similarity_score: float = Field(description="Similitud entre 0 y 1 para sugerencia de fusion")
+    preview_markdown: str
+
+
+class MergeApplyRequest(BaseModel):
+    target_item_id: int = Field(gt=0)
+
+
+class MergeRejectRequest(BaseModel):
+    target_item_id: int = Field(gt=0)
+
+
+class MergeHistoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    reverted_at: Optional[datetime]
+    source_item_id: int
+    target_item_id: int
+    preview_markdown: str
 
 
 class InboxUpdate(BaseModel):

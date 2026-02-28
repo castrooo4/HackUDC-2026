@@ -139,6 +139,14 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
               <span style={badgeStyle}>
                 <Calendar size={14} /> <span>{formatDate(item.created_at)}</span>
               </span>
+              {(item.save_count || 1) > 1 ? (
+                <span style={{ ...badgeStyle, borderColor: "rgba(70,211,126,0.4)", color: "var(--neon)" }}>
+                  <span>Guardado x{item.save_count}</span>
+                </span>
+              ) : null}
+              <span style={badgeStyle}>
+                <span>Intentos: {item.processing_attempts || 0}</span>
+              </span>
               {item.directory_id ? (
                 <Link
                   to={`/carpeta/${item.directory_id}`}
@@ -180,6 +188,13 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
                 <pre style={preStyle}>{item.content}</pre>
               </div>
             )}
+
+            {item.last_processing_error ? (
+              <div style={errorBoxStyle}>
+                <b>Ultimo error de procesado:</b>
+                <div>{item.last_processing_error}</div>
+              </div>
+            ) : null}
 
             <div style={actionZoneStyle}>
               {isEditingCategory ? (
@@ -333,6 +348,19 @@ const preStyle = {
   lineHeight: "1.6",
   color: "rgba(215, 239, 224, 0.9)",
   margin: 0,
+};
+
+const errorBoxStyle = {
+  marginTop: "16px",
+  padding: "12px",
+  borderRadius: "12px",
+  border: "1px solid rgba(255, 170, 90, 0.35)",
+  background: "rgba(255, 170, 90, 0.08)",
+  color: "#ffd9b0",
+  fontSize: "0.9rem",
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
 };
 
 const actionZoneStyle = {

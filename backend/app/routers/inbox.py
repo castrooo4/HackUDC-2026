@@ -8,8 +8,12 @@ from app.schemas.inbox import (
     InboxConfirmOrganization,
     InboxCityRead,
     InboxCreate,
+    MergeApplyRequest,
+    MergeHistoryRead,
+    MergeRejectRequest,
     InboxRead,
     InboxRecommendationRead,
+    TextMergeSuggestionRead,
     InboxUpdate,
     YouTubeRecommendationRead,
 )
@@ -75,6 +79,96 @@ def list_inbox_cities(
 ):
     rows = inbox_service.list_cities(session, user_id=current_user.id)
     return [InboxCityRead(city=city_name, item_count=count) for city_name, count in rows]
+
+
+@router.get(
+    "/merge-suggestions",
+    response_model=list[TextMergeSuggestionRead],
+    summary="Sugerencias automaticas de merge para TEXT",
+)
+def list_merge_suggestions(
+    limit: int = Query(default=20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return inbox_service.list_text_merge_suggestions(
+        session,
+        user_id=current_user.id,
+        limit=limit,
+    )
+
+
+@router.post(
+    "/{item_id}/merge-apply",
+    response_model=MergeHistoryRead,
+    summary="Aplicar merge de texto y guardar historial",
+)
+def apply_merge_for_text_item(
+    item_id: int,
+    payload: MergeApplyRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    source_item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not source_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    try:
+        return inbox_service.apply_text_merge(
+            session,
+            user_id=current_user.id,
+            source_item=source_item,
+            payload=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{item_id}/merge-reject",
+    response_model=InboxRead,
+    summary="Rechazar sugerencia de merge para un item TEXT",
+)
+def reject_merge_for_text_item(
+    item_id: int,
+    payload: MergeRejectRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    source_item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not source_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    try:
+        return inbox_service.reject_text_merge_suggestion(
+            session,
+            user_id=current_user.id,
+            source_item=source_item,
+            payload=payload,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post(
+    "/merge-history/{history_id}/revert",
+    response_model=MergeHistoryRead,
+    summary="Revertir merge aplicado",
+)
+def revert_text_merge(
+    history_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return inbox_service.revert_text_merge(
+            session,
+            user_id=current_user.id,
+            history_id=history_id,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        if "not found" in detail.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
 
 
 @router.get(

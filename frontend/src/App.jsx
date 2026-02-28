@@ -14,6 +14,7 @@ import Novedades from "./views/Novedades";
 import CarpetaView from "./views/CarpetaView";
 import MapaView from "./views/MapaView";
 import CiudadesView from "./views/CiudadesView";
+import MergeView from "./views/MergeView";
 import { filterAndSortInboxItems } from "./utils/inboxFilters";
 
 export default function App() {
@@ -149,6 +150,7 @@ export default function App() {
               <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} onDeleteItem={handleDeleteItem} />} />
               <Route path="/mapa" element={<MapaView items={items} onOpenDetail={openDetail} />} />
               <Route path="/ciudades" element={<CiudadesView onOpenDetail={openDetail} onDeleteItem={handleDeleteItem} />} />
+              <Route path="/merge" element={<MergeView onOpenDetail={openDetail} />} />
             </Routes>
           </div>
         </div>
