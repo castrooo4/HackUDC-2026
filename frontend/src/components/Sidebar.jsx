@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getDirectoriesTree } from "../api/inbox";
 import { Home, Sparkles, Folder, ChevronDown } from "lucide-react";
+import logoImg from "../assets/remit-logo.png";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -43,7 +44,9 @@ export default function Sidebar() {
 
   return (
     <div style={sidebarStyle}>
-      <div style={logoStyle}>BRAIN</div>
+      <div style={logoContainerStyle}>
+        <img src={logoImg} alt="Digital Brain Logo" style={logoImageStyle} />
+      </div>
       <nav style={navStyle}>
         
         {/* Enlace Principal */}
@@ -160,4 +163,16 @@ const subLinkStyle = {
 const activeSubLinkStyle = {
   ...subLinkStyle, background: "rgba(70, 211, 126, 0.1)",
   color: "var(--neon)", fontWeight: "bold", opacity: 1
+};
+
+const logoContainerStyle = {
+  textAlign: "center",
+  marginBottom: "40px",
+};
+
+const logoImageStyle = {
+  width: "50%",      // Ajusta según el tamaño de tu PNG
+  maxWidth: "150px",
+  height: "auto",
+  filter: "drop-shadow(0 0 10px rgba(70, 211, 126, 0.3))" // Opcional: efecto neón
 };
