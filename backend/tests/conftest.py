@@ -35,3 +35,19 @@ def client():
 
     app.dependency_overrides.clear()
     engine.dispose()
+
+
+@pytest.fixture()
+def auth_headers(client):
+    register_payload = {
+        "email": "inbox-user@example.com",
+        "password": "StrongPass123",
+        "full_name": "Inbox User",
+    }
+    client.post("/auth/register", json=register_payload)
+    login_response = client.post(
+        "/auth/login",
+        json={"email": register_payload["email"], "password": register_payload["password"]},
+    )
+    token = login_response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
