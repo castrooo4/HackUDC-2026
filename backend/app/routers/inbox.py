@@ -169,7 +169,12 @@ def update_inbox_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
     try:
-        return inbox_service.update_item(session, item=item, payload=payload)
+        return inbox_service.update_item(
+            session,
+            user_id=current_user.id,
+            item=item,
+            payload=payload,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 

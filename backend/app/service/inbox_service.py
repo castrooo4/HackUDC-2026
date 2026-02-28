@@ -172,7 +172,7 @@ class InboxService:
             for score, item in ranked[:limit]
         ]
 
-    def update_item(self, session: Session, *, item: InboxItem, payload: InboxUpdate) -> InboxItem:
+    def update_item(self, session: Session, *, user_id: int, item: InboxItem, payload: InboxUpdate) -> InboxItem:
         update_data = payload.model_dump(exclude_unset=True)
         has_lat = "location_lat" in update_data
         has_lon = "location_lon" in update_data
@@ -214,6 +214,22 @@ class InboxService:
                 item.title = update_data["title"]
             if "content" in update_data:
                 item.content = update_data["content"]
+
+        if "directory_id" in update_data:
+            directory_id = update_data.get("directory_id")
+            if directory_id is None:
+                raise ValueError("directory_id no puede ser null")
+            target = self.directory_service.get_directory_by_id(session, user_id, directory_id)
+            if not target:
+                raise ValueError("Directory not found")
+            item.directory_id = target.id
+
+        if "directory_name" in update_data:
+            directory_name = update_data.get("directory_name")
+            if directory_name is None:
+                raise ValueError("directory_name no puede ser null")
+            target = self.directory_service.get_or_create_directory_by_name(session, user_id, directory_name)
+            item.directory_id = target.id
 
         if has_lat and has_lon:
             lat, lon = validate_location_pair(update_data.get("location_lat"), update_data.get("location_lon"))

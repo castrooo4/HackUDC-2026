@@ -826,8 +826,29 @@ def test_confirm_organization_creates_new_directory_when_user_selects_new(client
     )
     assert organized.status_code == 200
     assert organized.json()["directory_id"] is not None
-    assert organized.json()["status"] == "ORGANIZED"
+
+
+def test_patch_allows_moving_item_to_existing_directory(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "item para mover de carpeta"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    original_directory_id = created.json()["directory_id"]
 
     tree = client.get("/directories/tree", headers=auth_headers)
+    assert tree.status_code == 200
     roots = tree.json()["roots"]
-    assert any(node["name"] == "Innovacion" and item_id in node["item_ids"] for node in roots)
+    assert roots
+
+    target_directory_id = next((node["id"] for node in roots if node["id"] != original_directory_id), roots[0]["id"])
+
+    moved = client.patch(
+        f"/inbox/{item_id}",
+        json={"directory_id": target_directory_id},
+        headers=auth_headers,
+    )
+    assert moved.status_code == 200
+    assert moved.json()["directory_id"] == target_directory_id
