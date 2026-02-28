@@ -11,6 +11,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Novedades from "./views/Novedades";
 import CarpetaView from "./views/CarpetaView";
+import TelegramLinkModal from "./components/TelegramLinkModal";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
@@ -23,6 +24,7 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [telegramOpen, setTelegramOpen] = useState(false);
   const [isLight, setIsLight] = useState(false);
 
   // Estado de autenticación
@@ -128,7 +130,16 @@ export default function App() {
         <div className="main-content" style={{ flex: 1, marginLeft: "240px" }}>
           <div className="bg" />
           <div className="container">
-            <TopBar healthOk={healthOk} total={items.length} onLogout={handleLogout} />
+            <TopBar
+              healthOk={healthOk}
+              total={items.length}
+              onLogout={handleLogout}
+              rightContent={
+                <button onClick={() => setTelegramOpen(true)} style={telegramBtnStyle}>
+                  Telegram
+                </button>
+              }
+            />
 
             <Routes>
               {/* Esta es tu pantalla principal actual */}
@@ -151,6 +162,7 @@ export default function App() {
         {/* El botón flotante y modales se mantienen globales */}
         <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
         <CreateItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
+        <TelegramLinkModal open={telegramOpen} onClose={() => setTelegramOpen(false)} />
         {/* El botón flotante y modales se mantienen globales */}
         <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
 
@@ -169,6 +181,9 @@ export default function App() {
           onClose={() => setDetailOpen(false)}
         />
 
+
+
+
       </div>
     </Router>
   );
@@ -181,4 +196,14 @@ const fabStyle = {
   fontSize: 32, fontWeight: "bold", border: "none",
   cursor: "pointer", boxShadow: "0 0 20px rgba(70,211,126,0.4)",
   zIndex: 1000, transition: "transform 0.2s"
+};
+
+const telegramBtnStyle = {
+  padding: "8px 14px",
+  borderRadius: 999,
+  border: "1px solid rgba(70,211,126,.35)",
+  background: "rgba(70,211,126,.12)",
+  color: "var(--text)",
+  fontWeight: "bold",
+  cursor: "pointer",
 };

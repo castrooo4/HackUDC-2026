@@ -68,6 +68,9 @@ curl -X DELETE "http://127.0.0.1:8000/inbox/1"
 - `PATCH /inbox/{id}`
 - `DELETE /inbox/{id}`
 - `GET /directories/tree`
+- `POST /telegram/link-code`
+- `GET /telegram/link`
+- `POST /telegram/webhook`
 - `GET /health`
 
 ## Flujo de organizacion (nuevo)
@@ -232,4 +235,23 @@ Esperado en respuesta:
 ```bash
 cd backend
 python -m pytest -q
+```
+
+## Integracion Telegram
+Variables nuevas en `.env`:
+- `TELEGRAM_BOT_TOKEN`: token del bot de BotFather.
+- `TELEGRAM_WEBHOOK_SECRET`: secreto opcional para validar header `X-Telegram-Bot-Api-Secret-Token`.
+- `TELEGRAM_LINK_CODE_TTL_MINUTES`: minutos de vida del codigo de vinculacion.
+
+Flujo:
+1. Usuario autenticado solicita codigo: `POST /telegram/link-code`.
+2. En chat privado con el bot envia: `/start <codigo>`.
+3. El webhook (`POST /telegram/webhook`) vincula `chat_id` con `user_id`.
+4. Luego, cualquier texto o foto enviada al bot se guarda como item en inbox de ese usuario (`source=telegram`).
+
+Configurar webhook en Telegram:
+```bash
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -d "url=https://tu-dominio.com/telegram/webhook" \
+  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```

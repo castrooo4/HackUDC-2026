@@ -60,6 +60,26 @@ document.getElementById('loginBtn').onclick = async () => {
   }
 };
 
+// --- ESCUCHAR LA TECLA ENTER PARA EL LOGIN ---
+const handleLoginEnter = (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault(); // Evita que el formulario recargue la página por defecto
+    document.getElementById('loginBtn').click(); // Simula un clic en tu botón de Entrar
+  }
+};
+
+// Se lo aplicamos a los campos de email y contraseña del login
+document.getElementById('loginEmail').addEventListener('keypress', handleLoginEnter);
+document.getElementById('loginPass').addEventListener('keypress', handleLoginEnter);
+
+// (Opcional) Lo hacemos también para el último campo del registro
+document.getElementById('regPass').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('registerBtn').click();
+  }
+});
+
 // --- LÓGICA DE REGISTRO (Corregida para depurar el 422) ---
 document.getElementById('registerBtn').onclick = async () => {
   const email = document.getElementById('regEmail').value.trim();
@@ -145,5 +165,14 @@ document.getElementById('autoSaveBtn').addEventListener('click', () => {
 // 3. Recortar y Guardar
 document.getElementById('screenshotBtn').addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: "INIT_SCREENSHOT" });
+  window.close();
+});
+
+// --- BOTÓN: ABRIR CEREBRO DIGITAL (WEB) ---
+document.getElementById('openWebBtn').addEventListener('click', () => {
+  // Abre una nueva pestaña en el navegador apuntando a tu frontend de Vite
+  chrome.tabs.create({ url: "http://localhost:5173" });
+
+  // Opcional: cerrar el popup de la extensión después de hacer clic
   window.close();
 });

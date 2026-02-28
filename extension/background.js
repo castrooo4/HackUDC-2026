@@ -3,21 +3,19 @@ async function sendToRemitBackend(payload) {
   const data = await chrome.storage.local.get(['access_token']);
   const token = data.access_token;
 
-  // --- LA MAGIA DEL AVISO VISUAL ---
+  // --- LA MAGIA DEL AVISO VISUAL (Si no hay sesión) ---
   if (!token) {
     console.warn("Remit: Intento de guardado sin iniciar sesión.");
-
-    // Buscamos la pestaña donde está el usuario y le disparamos el Toast rojo
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: "SHOW_TOAST",
           message: "⚠️ Inicia sesión en Remit para guardar",
-          type: "error" // Indicamos que use el estilo rojo
+          type: "error"
         });
       }
     });
-    return; // Detenemos la ejecución para que no haga el fetch
+    return;
   }
 
   // --- PETICIÓN AL BACKEND ---

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getOrganizedInbox, getDirectoriesTree } from '../api/inbox';
 import CardGrid from '../components/CardGrid';
+import { Folder } from 'lucide-react';
 
 export default function CarpetaView({ onOpenDetail }) {
   // Extraemos el ID de la carpeta desde la URL de React Router
@@ -65,14 +66,27 @@ export default function CarpetaView({ onOpenDetail }) {
 
   return (
     <div style={{ padding: '10px 0', color: 'var(--text)' }}>
+      {/* 2. Sustituimos el emoticono por el componente Folder */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' }}>
-        <h2 style={{ margin: 0, color: 'var(--neon)', fontSize: '2rem' }}>📂 {folderName}</h2>
+        <h2 style={{ 
+          margin: 0, 
+          color: 'var(--neon)', 
+          fontSize: '2rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px' 
+        }}>
+          <Folder size={32} strokeWidth={2.5} /> {folderName}
+        </h2>
         <div style={badgeStyle}>{items.length} elementos</div>
       </div>
 
       {items.length === 0 ? (
         <div style={emptyStyle}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>📭</div>
+          {/* 3. También podemos mejorar el icono del estado vacío */}
+          <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>
+            <Folder size={48} style={{ opacity: 0.2, color: 'var(--neon)' }} />
+          </div>
           <h3 style={{ margin: 0, color: 'var(--neon)' }}>Carpeta vacía</h3>
           <p style={{ opacity: 0.7 }}>Aún no has organizado nada aquí.</p>
         </div>

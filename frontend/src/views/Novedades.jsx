@@ -1,6 +1,7 @@
 // src/views/Novedades.jsx
 import React, { useState, useEffect } from 'react';
 import { getPendingInbox, getDirectoriesTree, confirmOrganization } from '../api/inbox';
+import { Sparkles, Loader2, FolderPlus, FolderCheck, CheckCircle2, PartyPopper } from 'lucide-react';
 
 export default function Novedades({ onOpenDetail }) {
   const [pendingItems, setPendingItems] = useState([]);
@@ -73,7 +74,14 @@ export default function Novedades({ onOpenDetail }) {
     return foundName || `Carpeta ${dirId}`;
   };
 
-  if (loading) return <div style={containerStyle}><div style={loadingStyle}>Sincronizando con la IA...</div></div>;
+  if (loading) return (
+    <div style={containerStyle}>
+      <div style={loadingStyle}>
+        <Loader2 className="animate-spin" size={32} style={{ marginBottom: '10px', color: 'var(--neon)' }} />
+        <div>Sincronizando con la IA...</div>
+      </div>
+    </div>
+  );
   if (error) return <div style={containerStyle}><p style={{ color: '#ff4444', padding: '20px', background: 'rgba(255,0,0,0.1)', borderRadius: '16px' }}>❌ {error}</p></div>;
 
   return (

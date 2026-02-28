@@ -6,6 +6,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     APP_NAME: str = "Kelea Digital Brain - MVP"
@@ -26,6 +27,9 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     GROQ_MODEL_TEXT: str = "llama-3.1-8b-instant"
     GROQ_MODEL_VISION: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_WEBHOOK_SECRET: str = ""
+    TELEGRAM_LINK_CODE_TTL_MINUTES: int = 15
 
 
 settings = Settings()

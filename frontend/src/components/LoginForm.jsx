@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { login, register as registerApi } from "../api/auth";
+import logoImg from "../assets/remit-logo.png";
 
 export default function LoginForm({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false); // Estado para alternar modo
@@ -37,8 +38,11 @@ export default function LoginForm({ onLoginSuccess }) {
   return (
     <div style={loginContainerStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
+        <div style={{ textAlign: "center", marginBottom: "5px" }}> {/* Reducido de 40px a 10px */}
+          <img src={logoImg} alt="Logo" style={{ width: "100px", height: "auto" }} />
+        </div>
         <h2 style={{ color: "var(--neon)", textAlign: "center", marginBottom: '5px' }}>
-          {isRegister ? "NUEVO CEREBRO" : "DIGITAL BRAIN"}
+          {isRegister ? "RemIt - Registro" : "RemIt - Inicio de Sesión"}
         </h2>
         <p style={{ textAlign: "center", opacity: 0.7, marginBottom: '20px' }}>
           {isRegister ? "Crea tu cuenta de acceso" : "Identifícate para acceder"}
@@ -163,4 +167,16 @@ const loginBtnStyle = {
   borderRadius: "12px",
   fontWeight: "bold",
   cursor: "pointer"
+};
+
+const logoContainerStyle = {
+  textAlign: "center",
+  marginBottom: "40px",
+};
+
+const logoImageStyle = {
+  width: "50%",      // Ajusta según el tamaño de tu PNG
+  maxWidth: "150px",
+  height: "auto",
+  filter: "drop-shadow(0 0 10px rgba(70, 211, 126, 0.3))" // Opcional: efecto neón
 };
