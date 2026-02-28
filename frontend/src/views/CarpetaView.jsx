@@ -1,17 +1,25 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Folder } from "lucide-react";
 
 import { getOrganizedInbox, getDirectoriesTree } from "../api/inbox";
 import CardGrid from "../components/CardGrid";
+import InboxFilters from "../components/InboxFilters";
+import { filterAndSortInboxItems } from "../utils/inboxFilters";
 
-export default function CarpetaView({ onOpenDetail }) {
+export default function CarpetaView({ onOpenDetail, onDeleteItem }) {
   const { id } = useParams();
   const folderId = Number.parseInt(id, 10);
 
   const [items, setItems] = useState([]);
   const [folderName, setFolderName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredAndSortedItems = useMemo(() => {
+    return filterAndSortInboxItems(items, filterType, searchQuery);
+  }, [items, filterType, searchQuery]);
 
   useEffect(() => {
     async function loadData() {
@@ -74,6 +82,13 @@ export default function CarpetaView({ onOpenDetail }) {
         <div style={badgeStyle}>{items.length} elementos</div>
       </div>
 
+      <InboxFilters
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+      />
+
       {items.length === 0 ? (
         <div style={emptyStyle}>
           <div style={{ marginBottom: "15px", display: "flex", justifyContent: "center" }}>
@@ -82,8 +97,13 @@ export default function CarpetaView({ onOpenDetail }) {
           <h3 style={{ margin: 0, color: "var(--neon)" }}>Carpeta vacia</h3>
           <p style={{ opacity: 0.7 }}>Aun no has organizado nada aqui.</p>
         </div>
+      ) : filteredAndSortedItems.length === 0 ? (
+        <div style={emptyStyle}>
+          <h3 style={{ margin: 0, color: "var(--neon)" }}>Sin resultados</h3>
+          <p style={{ opacity: 0.7 }}>Ajusta el buscador o el tipo para ver elementos.</p>
+        </div>
       ) : (
-        <CardGrid items={items} setItems={setItems} onOpen={onOpenDetail} />
+        <CardGrid items={filteredAndSortedItems} setItems={setItems} onOpen={onOpenDetail} onDelete={onDeleteItem} />
       )}
     </div>
   );

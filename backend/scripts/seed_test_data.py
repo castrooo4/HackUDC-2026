@@ -75,13 +75,6 @@ def seed():
         )
         directory_service.ensure_default_directories(session, user.id)
 
-        youtube_preview = _make_image_data_url(
-            width=640,
-            height=360,
-            bg_color=(180, 20, 20),
-            accent_color=(230, 230, 230),
-            fmt="JPEG",
-        )
         image_preview = _make_image_data_url(
             width=800,
             height=500,
@@ -121,22 +114,22 @@ def seed():
                 user_id=user.id,
                 source="seed",
                 item_type=InboxItemType.YOUTUBE,
-                title="FastAPI Crash Course",
-                content="Guia practica para construir APIs limpias con FastAPI.",
+                title="Rick Astley - Never Gonna Give You Up",
+                content="Referencia de video musical para pruebas de recomendaciones en YouTube.",
                 url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 **_geo(city_for(43.3630, -8.4100, CITY_A_CORUNA), 43.3630, -8.4100),
-                preview_base64=youtube_preview,
+                preview_base64=None,
                 mime_type="video/youtube",
                 metadata_json={
                     "video_id": "dQw4w9WgXcQ",
                     "preview_kind": "youtube",
-                    "author_name": "Canal Demo",
-                    "channel_name": "Canal Demo",
-                    "description_excerpt": "Curso corto de FastAPI para backend.",
-                    "duration_iso8601": "PT12M34S",
-                    "upload_date": "2026-02-20",
-                    "keywords": ["fastapi", "backend", "python"],
-                    "view_count": 123456,
+                    "author_name": "Rick Astley",
+                    "channel_name": "Rick Astley",
+                    "description_excerpt": "Video de prueba para recomendar contenido de YouTube.",
+                    "duration_iso8601": "PT3M33S",
+                    "upload_date": "2009-10-25",
+                    "keywords": ["music", "pop", "classic"],
+                    "view_count": 0,
                     "thumbnail_url": "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
                 },
             ),

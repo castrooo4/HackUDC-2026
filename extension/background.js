@@ -7,6 +7,7 @@ const ACTIONS = {
   INIT_SCREENSHOT: "INIT_SCREENSHOT",
   START_CROP_UI: "START_CROP_UI",
   SHOW_TOAST: "SHOW_TOAST",
+  GET_YOUTUBE_RECOMMENDATIONS: "GET_YOUTUBE_RECOMMENDATIONS",
 };
 
 const TOAST_TYPE = {
@@ -109,7 +110,7 @@ async function sendToBackend(payload) {
 
   if (!token) {
     console.warn("Remit: save attempted without active session");
-    await sendToastToActiveTab("âš ï¸ Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
     return;
   }
 
@@ -133,14 +134,14 @@ async function sendToBackend(payload) {
 
     if (response.status === 401) {
       await removeStorage(["access_token"]);
-      await sendToastToActiveTab("âš ï¸ Tu sesion ha caducado", TOAST_TYPE.ERROR);
+      await sendToastToActiveTab("Tu sesion ha caducado", TOAST_TYPE.ERROR);
       return;
     }
 
-    await sendToastToActiveTab("âŒ Error al guardar en el cerebro", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Error al guardar en el cerebro", TOAST_TYPE.ERROR);
   } catch (error) {
     console.error("Remit backend error", error);
-    await sendToastToActiveTab("âŒ Error de conexion con el servidor", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Error de conexion con el servidor", TOAST_TYPE.ERROR);
   }
 }
 
@@ -190,6 +191,41 @@ async function handleInitScreenshot() {
   });
 }
 
+async function getYoutubeRecommendations(payload) {
+  const { access_token: token } = await getStorage(["access_token"]);
+  if (!token) {
+    return { status: "unauthorized", recommendations: [] };
+  }
+
+  const params = new URLSearchParams();
+  if (payload?.currentUrl) params.set("current_url", payload.currentUrl);
+  if (payload?.currentTitle) params.set("current_title", payload.currentTitle);
+  if (payload?.currentChannel) params.set("current_channel", payload.currentChannel);
+  params.set("limit", String(Math.min(20, Math.max(1, Number(payload?.limit || 20)))));
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/inbox/recommendations/youtube?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.status === 401) {
+      await removeStorage(["access_token"]);
+      return { status: "unauthorized", recommendations: [] };
+    }
+    if (!response.ok) {
+      return { status: "error", recommendations: [] };
+    }
+
+    const data = await response.json();
+    return { status: "ok", recommendations: Array.isArray(data) ? data : [] };
+  } catch (_error) {
+    return { status: "error", recommendations: [] };
+  }
+}
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     if (request.action === ACTIONS.SAVE_MANUAL) {
@@ -211,6 +247,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       return;
     }
 
+    if (request.action === ACTIONS.GET_YOUTUBE_RECOMMENDATIONS) {
+      const result = await getYoutubeRecommendations(request.payload);
+      sendResponse(result);
+      return;
+    }
+
     sendResponse({ status: "ignored" });
   })();
 
@@ -220,22 +262,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "remit-save-text",
-    title: "ðŸ§  Guardar texto en Remit",
+    title: "Guardar texto en Remit",
     contexts: ["selection"],
   });
   chrome.contextMenus.create({
     id: "remit-save-link",
-    title: "ðŸ§  Guardar enlace en Remit",
+    title: "Guardar enlace en Remit",
     contexts: ["link"],
   });
   chrome.contextMenus.create({
     id: "remit-save-image",
-    title: "ðŸ§  Guardar imagen en Remit",
+    title: "Guardar imagen en Remit",
     contexts: ["image"],
   });
   chrome.contextMenus.create({
     id: "remit-save-page",
-    title: "ðŸ§  Guardar esta pagina en Remit",
+    title: "Guardar esta pagina en Remit",
     contexts: ["page"],
   });
 });

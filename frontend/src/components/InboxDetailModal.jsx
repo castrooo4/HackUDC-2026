@@ -85,9 +85,15 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
   };
 
   const handleSaveCategory = async () => {
+    const targetDirectoryId = Number.parseInt(newDirId, 10);
+    if (!Number.isInteger(targetDirectoryId) || targetDirectoryId <= 0) {
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "Selecciona una carpeta valida", toastType: "error" }, "*");
+      return;
+    }
+
     setActionLoading(true);
     try {
-      await updateInboxItem(item.id, { directory_id: Number.parseInt(newDirId, 10) });
+      await updateInboxItem(item.id, { directory_id: targetDirectoryId });
       window.postMessage({ type: "REMIT_NEW_ITEM" }, "*");
       window.postMessage({ type: "REMIT_WEB_TOAST", message: "Movido de carpeta con exito", toastType: "success" }, "*");
       setIsEditingCategory(false);

@@ -1,20 +1,11 @@
 ﻿import React, { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Video, FileText, Globe, ImageIcon, FileJson } from "lucide-react";
+import { FileJson, FileText, Globe, ImageIcon, X } from "lucide-react";
 
-export default function InboxCard({ item, onOpen }) {
+export default function InboxCard({ item, onOpen, onDelete }) {
   const [isHovered, setIsHovered] = useState(false);
-  
-  // 1. REINTEGRACIÓN DE DND-KIT (Obligatorio para que funcione)
-  const { 
-    attributes, 
-    listeners, 
-    setNodeRef, 
-    transform, 
-    transition, 
-    isDragging 
-  } = useSortable({ id: item.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   const style = {
     ...cardStyle,
@@ -27,11 +18,10 @@ export default function InboxCard({ item, onOpen }) {
   };
 
   const renderMedia = () => {
-    // 2. LÓGICA PARA YOUTUBE
     if (item.item_type === "YOUTUBE" && item.url) {
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = item.url.match(regExp);
-      const videoId = (match && match[2].length === 11) ? match[2] : null;
+      const videoId = match && match[2]?.length === 11 ? match[2] : null;
 
       if (videoId) {
         return (
@@ -44,21 +34,19 @@ export default function InboxCard({ item, onOpen }) {
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-            ></iframe>
+            />
           </div>
         );
       }
     }
 
-    // 3. IMAGEN (Usando preview_base64 que es el campo real)
     if (item.preview_base64) {
-      const src = item.preview_base64.startsWith("data:") 
-        ? item.preview_base64 
+      const src = item.preview_base64.startsWith("data:")
+        ? item.preview_base64
         : `data:image/jpeg;base64,${item.preview_base64}`;
       return <img src={src} alt={item.title} style={imageStyle} />;
     }
 
-    // FALLBACK: Si no hay media, mostrar icono según el tipo
     return (
       <div style={iconFallbackStyle}>
         {item.item_type === "TEXT" && <FileText size={40} opacity={0.4} />}
@@ -75,25 +63,46 @@ export default function InboxCard({ item, onOpen }) {
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => !isDragging && onOpen(item.id)} //
+      onClick={() => {
+        if (!isDragging) onOpen(item.id);
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {onDelete ? (
+        <button
+          type="button"
+          style={{
+            ...deleteBtnStyle,
+            opacity: isHovered ? 1 : 0,
+            transform: isHovered ? "translateY(0)" : "translateY(-4px)",
+            pointerEvents: isHovered ? "auto" : "none",
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete(item.id);
+          }}
+          aria-label="Eliminar item"
+          title="Eliminar item"
+        >
+          <X size={14} />
+        </button>
+      ) : null}
+
       {renderMedia()}
-      
+
       <div style={infoPadding}>
         <div style={sourceTagStyle}>{item.source || "inbox"}</div>
         <h4 style={titleStyle}>{item.title || `Nota #${item.id}`}</h4>
-        {item.location_city && (
-          <span style={tagStyle}>{item.location_city}</span>
-        )}
+        {item.location_city ? <span style={tagStyle}>{item.location_city}</span> : null}
       </div>
     </div>
   );
 }
 
-// --- ESTILOS OPTIMIZADOS ---
 const cardStyle = {
+  position: "relative",
   breakInside: "avoid",
   marginBottom: "24px",
   borderRadius: "20px",
@@ -103,6 +112,24 @@ const cardStyle = {
   display: "flex",
   flexDirection: "column",
   width: "100%",
+};
+
+const deleteBtnStyle = {
+  position: "absolute",
+  top: "12px",
+  right: "12px",
+  width: "26px",
+  height: "26px",
+  borderRadius: "999px",
+  border: "1px solid rgba(255, 160, 160, 0.35)",
+  background: "rgba(11, 15, 13, 0.78)",
+  color: "#f3c7c7",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  zIndex: 20,
+  transition: "opacity 0.2s ease, transform 0.2s ease, background 0.2s ease",
 };
 
 const videoContainerStyle = {

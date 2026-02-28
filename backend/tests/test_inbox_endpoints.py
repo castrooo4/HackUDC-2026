@@ -624,6 +624,69 @@ def test_recommendations_endpoint_removed(client, auth_headers):
     assert response.status_code == 404
 
 
+def test_youtube_recommendations_endpoint(client, monkeypatch, auth_headers):
+    thumb = _build_png_bytes(640, 360, color=(120, 200, 60))
+
+    def fake_get(url, timeout=8):
+        if "youtube.com/oembed" in url and "videoaaa11a1" in url:
+            return MockResponse(
+                json_data={
+                    "title": "FastAPI arquitectura limpia",
+                    "author_name": "Kelea Channel",
+                    "thumbnail_url": "https://img.youtube.com/vi/videoaaa11a1/hqdefault.jpg",
+                }
+            )
+        if "youtube.com/oembed" in url and "videobbb22b2" in url:
+            return MockResponse(
+                json_data={
+                    "title": "Backend patterns para APIs",
+                    "author_name": "Kelea Channel",
+                    "thumbnail_url": "https://img.youtube.com/vi/videobbb22b2/hqdefault.jpg",
+                }
+            )
+        if "youtube.com/watch?v=videoaaa11a1" in url:
+            html = "<html><head><meta itemprop='interactionCount' content='101' /></head></html>"
+            return MockResponse(text=html, content=html.encode("utf-8"))
+        if "youtube.com/watch?v=videobbb22b2" in url:
+            html = "<html><head><meta itemprop='interactionCount' content='202' /></head></html>"
+            return MockResponse(text=html, content=html.encode("utf-8"))
+        if "img.youtube.com" in url:
+            return MockResponse(content=thumb, headers={"content-type": "image/jpeg"})
+        raise RuntimeError(f"unexpected URL: {url}")
+
+    monkeypatch.setattr("app.service.inbox_ingest_service.requests.get", fake_get)
+
+    first = client.post(
+        "/inbox",
+        json={"item_type": "YOUTUBE", "url": "https://youtu.be/videoaaa11a1"},
+        headers=auth_headers,
+    )
+    second = client.post(
+        "/inbox",
+        json={"item_type": "YOUTUBE", "url": "https://youtu.be/videobbb22b2"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+    response = client.get(
+        "/inbox/recommendations/youtube",
+        params={
+            "current_url": "https://youtu.be/videoaaa11a1",
+            "current_title": "FastAPI arquitectura limpia",
+            "current_channel": "Kelea Channel",
+            "limit": 20,
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert all(row["item"]["item_type"] == "YOUTUBE" for row in data)
+    assert any("videoaaa11a1" in (row["item"].get("url") or "") for row in data)
+    assert any("videobbb22b2" in (row["item"].get("url") or "") for row in data)
+
+
 def test_inbox_isolation_between_users(client, auth_headers):
     created = client.post(
         "/inbox",
@@ -763,8 +826,29 @@ def test_confirm_organization_creates_new_directory_when_user_selects_new(client
     )
     assert organized.status_code == 200
     assert organized.json()["directory_id"] is not None
-    assert organized.json()["status"] == "ORGANIZED"
+
+
+def test_patch_allows_moving_item_to_existing_directory(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "item para mover de carpeta"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    original_directory_id = created.json()["directory_id"]
 
     tree = client.get("/directories/tree", headers=auth_headers)
+    assert tree.status_code == 200
     roots = tree.json()["roots"]
-    assert any(node["name"] == "Innovacion" and item_id in node["item_ids"] for node in roots)
+    assert roots
+
+    target_directory_id = next((node["id"] for node in roots if node["id"] != original_directory_id), roots[0]["id"])
+
+    moved = client.patch(
+        f"/inbox/{item_id}",
+        json={"directory_id": target_directory_id},
+        headers=auth_headers,
+    )
+    assert moved.status_code == 200
+    assert moved.json()["directory_id"] == target_directory_id

@@ -195,6 +195,11 @@ function bindSaveActions() {
     chrome.tabs.create({ url: "http://localhost:5173" });
     window.close();
   });
+
+  el("cameraBtn").addEventListener("click", () => {
+    chrome.tabs.create({ url: "camera.html" });
+    window.close();
+  });
 }
 
 function bindEnterShortcuts() {
@@ -224,9 +229,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindLocationToggle();
   bindSaveActions();
   bindEnterShortcuts();
-});
-
-document.getElementById('cameraBtn').addEventListener('click', () => {
-  chrome.tabs.create({ url: "camera.html" });
-  window.close();
 });

@@ -198,12 +198,19 @@ class InboxCityRead(BaseModel):
     item_count: int
 
 
+class YouTubeRecommendationRead(BaseModel):
+    item: InboxRead
+    score: float = Field(description="Puntuacion de relevancia para ordenar recomendaciones")
+
+
 class InboxUpdate(BaseModel):
     source: Optional[str] = None
     item_type: Optional[InboxItemType] = None
     title: Optional[str] = None
     content: Optional[str] = None
     url: Optional[str] = None
+    directory_id: Optional[int] = Field(default=None, gt=0)
+    directory_name: Optional[str] = Field(default=None, max_length=60)
     location_lat: Optional[float] = None
     location_lon: Optional[float] = None
     file_base64: Optional[str] = None
@@ -235,6 +242,14 @@ class InboxUpdate(BaseModel):
         cleaned = value.strip()
         return cleaned if cleaned else None
 
+    @field_validator("directory_name")
+    @classmethod
+    def normalize_directory_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        cleaned = " ".join(value.split()).strip()
+        return cleaned if cleaned else None
+
     @field_validator("location_lat")
     @classmethod
     def validate_update_lat(cls, value: Optional[float]) -> Optional[float]:
@@ -255,6 +270,9 @@ class InboxUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_not_empty_payload(self):
+        if self.directory_id is not None and self.directory_name is not None:
+            raise ValueError("usa directory_id o directory_name, no ambos")
+
         if not any(
             value is not None
             for value in [
@@ -263,6 +281,8 @@ class InboxUpdate(BaseModel):
                 self.title,
                 self.content,
                 self.url,
+                self.directory_id,
+                self.directory_name,
                 self.location_lat,
                 self.location_lon,
                 self.file_base64,
