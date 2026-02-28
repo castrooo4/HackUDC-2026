@@ -4,7 +4,7 @@ import { Building2, MapPin } from "lucide-react";
 import { listCities, listInboxByCity } from "../api/inbox";
 import CardGrid from "../components/CardGrid";
 
-export default function CiudadesView({ onOpenDetail }) {
+export default function CiudadesView({ onOpenDetail, onDeleteItem }) {
   const [cities, setCities] = useState([]);
   const [selectedCity, setSelectedCity] = useState("");
   const [cityItems, setCityItems] = useState([]);
@@ -110,7 +110,7 @@ export default function CiudadesView({ onOpenDetail }) {
                 <div style={subTitleStyle}>{selectedCity}</div>
                 <div style={subCountStyle}>{selectedCityCount} items</div>
               </div>
-              <CardGrid items={cityItems} setItems={setCityItems} onOpen={onOpenDetail} />
+              <CardGrid items={cityItems} setItems={setCityItems} onOpen={onOpenDetail} onDelete={onDeleteItem} />
             </>
           )}
         </>

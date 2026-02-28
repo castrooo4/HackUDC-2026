@@ -193,19 +193,25 @@ textarea {
 }
 
 .btn-warning {
-  background: linear-gradient(180deg, #f6ad3f, #d9861f);
+  background: linear-gradient(180deg, #3fcf7c, #2a8c56);
 }
 
 .btn-accent {
-  background: linear-gradient(180deg, #ba6bf2, #8a3ec2);
+  background: linear-gradient(180deg, #35b86f, #247548);
 }
 
 .btn-secondary {
-  background: linear-gradient(180deg, #3f9de2, #2a72c6);
+  background: linear-gradient(180deg, #2e9f63, #1f6643);
+}
+
+.btn-muted {
+  background: linear-gradient(180deg, rgba(215, 239, 224, 0.14), rgba(215, 239, 224, 0.07));
+  border-color: rgba(215, 239, 224, 0.24);
+  color: var(--text);
 }
 
 .btn-info {
-  background: linear-gradient(180deg, #5fb2ea, #2f8acb);
+  background: linear-gradient(180deg, #3eb573, #2a7b4f);
 }
 
 .btn-ghost {
