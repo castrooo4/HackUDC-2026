@@ -20,7 +20,7 @@ async function sendToRemitBackend(payload) {
     return; // Detenemos la ejecución para que no haga el fetch
   }
 
-  // ... (Aquí sigue tu código normal del fetch con el Authorization: Bearer) ...
+  // --- PETICIÓN AL BACKEND ---
   fetch("http://127.0.0.1:8000/inbox", {
     method: "POST",
     headers: {
@@ -29,8 +29,54 @@ async function sendToRemitBackend(payload) {
     },
     body: JSON.stringify(payload)
   })
-  // ... resto del fetch ...
+    .then(response => {
+      // Manejamos la respuesta para mostrar el Toast y avisar a la web
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]) return;
+
+        if (response.ok) {
+          // 👇 EL TOQUE MÁGICO DE WALKIE-TALKIE PARA ACTUALIZAR LA WEB 👇
+          chrome.storage.local.set({ remit_last_saved: Date.now() });
+
+          // Aviso visual de éxito
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "¡Guardado en Remit!",
+            type: "success"
+          });
+        } else if (response.status === 401) {
+          // Token caducado
+          console.error("Remit: Token expirado o inválido.");
+          chrome.storage.local.remove(['access_token']);
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "⚠️ Tu sesión ha caducado",
+            type: "error"
+          });
+        } else {
+          // Otro error del servidor (ej. 500 o 422)
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "❌ Error al guardar en el cerebro",
+            type: "error"
+          });
+        }
+      });
+    })
+    .catch(err => {
+      console.error("Error Remit:", err);
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "SHOW_TOAST",
+            message: "❌ Error de conexión con el servidor",
+            type: "error"
+          });
+        }
+      });
+    });
 }
+
 // --- 2. FUNCIÓN MÁGICA PARA CONVERTIR A BASE64 ---
 async function urlToBase64(url) {
   try {
@@ -47,8 +93,7 @@ async function urlToBase64(url) {
   }
 }
 
-// --- 3. ESCUCHADOR DE LA EXTENSIÓN (Botones, Popup) ---
-// --- ESCUCHADOR DE LA EXTENSIÓN (Botones, Popup, Widget) ---
+// --- 3. ESCUCHADOR DE LA EXTENSIÓN (Botones, Popup, Widget) ---
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (request.action === "SAVE_MANUAL") {
     sendToRemitBackend(request.payload);
@@ -114,6 +159,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     return true;
   }
 });
+
 // --- 4. CONFIGURACIÓN DEL MENÚ CONTEXTUAL (Click Derecho) ---
 
 // Crear las opciones en el menú
@@ -145,7 +191,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   let payload = { source: "extension" };
 
   // Ignoramos favicon, ya que el backend se encarga
-
   if (info.menuItemId === "remit-save-text") {
     payload.item_type = "TEXT";
     payload.content = info.selectionText;

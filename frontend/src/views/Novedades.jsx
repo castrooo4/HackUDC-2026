@@ -11,6 +11,16 @@ export default function Novedades({ onOpenDetail }) {
 
   useEffect(() => {
     fetchData();
+
+    const handleSync = (event) => {
+      if (event.data?.type === "REMIT_NEW_ITEM") {
+        console.log("Magia: Recargando Novedades en segundo plano...");
+        fetchData();
+      }
+    };
+
+    window.addEventListener("message", handleSync);
+    return () => window.removeEventListener("message", handleSync);
   }, []);
 
   async function fetchData() {

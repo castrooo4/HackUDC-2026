@@ -1,13 +1,12 @@
 console.log("%c[REMIT SYNC] 🕵️‍♂️ Espía bidireccional activado", "color: #9C27B0; font-weight: bold; font-size: 14px;");
 
 // =========================================================================
-// 1. DIRECCIÓN: WEB -> EXTENSIÓN (Lo que ya funcionaba)
+// 1. DIRECCIÓN: WEB -> EXTENSIÓN 
 // =========================================================================
 window.addEventListener("message", (event) => {
   if (event.source !== window) return;
 
   if (event.data.type === "REMIT_LOGIN_SUCCESS" && event.data.token) {
-    // Comprobamos si ya lo tenemos para evitar bucles infinitos
     chrome.storage.local.get(['access_token'], (data) => {
       if (data.access_token !== event.data.token) {
         chrome.storage.local.set({ access_token: event.data.token }, () => {
@@ -25,28 +24,32 @@ window.addEventListener("message", (event) => {
 });
 
 // =========================================================================
-// 2. DIRECCIÓN: EXTENSIÓN -> WEB (¡La magia nueva!)
+// 2. DIRECCIÓN: EXTENSIÓN -> WEB (El Walkie-Talkie Corregido)
 // =========================================================================
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.access_token) {
+  if (namespace !== 'local') return;
+
+  // === CASOS A y B: Inicios y cierres de sesión ===
+  if (changes.access_token) {
     const newToken = changes.access_token.newValue;
     const currentWebToken = localStorage.getItem('token');
 
-    // CASO A: Hemos iniciado sesión desde el Popup de la extensión
     if (newToken && newToken !== currentWebToken) {
       console.log("%c[EXT -> WEB] 🔄 Inyectando sesión en la web...", "color: #2196F3; font-weight:bold;");
-
-      // El content script comparte el localStorage con la web, ¡así que lo escribimos directo!
       localStorage.setItem('token', newToken);
-
-      // Recargamos la pestaña suavemente para que tu frontend (React/Vite) detecte el cambio
       window.location.reload();
     }
-    // CASO B: Hemos cerrado sesión desde el Popup de la extensión
     else if (!newToken && currentWebToken) {
       console.log("%c[EXT -> WEB] 🚪 Forzando logout en la web...", "color: #FF9800; font-weight:bold;");
       localStorage.removeItem('token');
       window.location.reload();
     }
+  }
+
+  // === CASO C: La IA de la extensión acaba de guardar algo ===
+  // (Ahora está libre y se ejecutará siempre que guardes)
+  if (changes.remit_last_saved) {
+    console.log("%c[EXT -> WEB] 📢 Nuevo elemento guardado, avisando a la web...", "color: #FFEB3B; font-weight:bold;");
+    window.postMessage({ type: "REMIT_NEW_ITEM" }, "*");
   }
 });

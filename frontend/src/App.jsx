@@ -34,6 +34,17 @@ export default function App() {
       refreshHealth();
       refreshList();
     }
+
+
+    const handleSync = (event) => {
+      if (event.data?.type === "REMIT_NEW_ITEM" && token) {
+        console.log("Magia: Recargando Inbox principal en segundo plano...");
+        refreshList();
+      }
+    };
+
+    window.addEventListener("message", handleSync);
+    return () => window.removeEventListener("message", handleSync);
   }, [token]);
 
   // Funciones de API
