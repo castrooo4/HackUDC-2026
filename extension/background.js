@@ -110,7 +110,7 @@ async function sendToBackend(payload) {
 
   if (!token) {
     console.warn("Remit: save attempted without active session");
-    await sendToastToActiveTab("âš ï¸ Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Inicia sesion en Remit para guardar", TOAST_TYPE.ERROR);
     return;
   }
 
@@ -134,14 +134,14 @@ async function sendToBackend(payload) {
 
     if (response.status === 401) {
       await removeStorage(["access_token"]);
-      await sendToastToActiveTab("âš ï¸ Tu sesion ha caducado", TOAST_TYPE.ERROR);
+      await sendToastToActiveTab("Tu sesion ha caducado", TOAST_TYPE.ERROR);
       return;
     }
 
-    await sendToastToActiveTab("âŒ Error al guardar en el cerebro", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Error al guardar en el cerebro", TOAST_TYPE.ERROR);
   } catch (error) {
     console.error("Remit backend error", error);
-    await sendToastToActiveTab("âŒ Error de conexion con el servidor", TOAST_TYPE.ERROR);
+    await sendToastToActiveTab("Error de conexion con el servidor", TOAST_TYPE.ERROR);
   }
 }
 
@@ -262,22 +262,22 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "remit-save-text",
-    title: "ðŸ§  Guardar texto en Remit",
+    title: "Guardar texto en Remit",
     contexts: ["selection"],
   });
   chrome.contextMenus.create({
     id: "remit-save-link",
-    title: "ðŸ§  Guardar enlace en Remit",
+    title: "Guardar enlace en Remit",
     contexts: ["link"],
   });
   chrome.contextMenus.create({
     id: "remit-save-image",
-    title: "ðŸ§  Guardar imagen en Remit",
+    title: "Guardar imagen en Remit",
     contexts: ["image"],
   });
   chrome.contextMenus.create({
     id: "remit-save-page",
-    title: "ðŸ§  Guardar esta pagina en Remit",
+    title: "Guardar esta pagina en Remit",
     contexts: ["page"],
   });
 });
