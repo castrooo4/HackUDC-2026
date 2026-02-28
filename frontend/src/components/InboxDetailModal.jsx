@@ -8,6 +8,8 @@ import {
   FileText, ImageIcon, Brain, Check, RotateCcw 
 } from "lucide-react";
 
+import { Link } from "react-router-dom";
+
 export default function InboxDetailModal({ open, item, loading, error, onClose }) {
   const [directories, setDirectories] = useState([]);
   const [isEditingCategory, setIsEditingCategory] = useState(false);
@@ -147,9 +149,29 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
               <span style={badgeStyle}>
                 <Calendar size={14} /> <span>{formatDate(item.created_at)}</span>
               </span>
-              <span style={{ ...badgeStyle, borderColor: 'var(--neon)', color: 'var(--neon)', background: 'rgba(70, 211, 126, 0.05)' }}>
-                <Folder size={14} /> <span>{currentCategoryName}</span>
-              </span>
+              {item.directory_id ? (
+                <Link 
+                  to={`/carpeta/${item.directory_id}`} 
+                  onClick={onClose} // Cerramos el modal al navegar
+                  style={{ 
+                    ...badgeStyle, 
+                    borderColor: 'var(--neon)', 
+                    color: 'var(--neon)', 
+                    background: 'rgba(70, 211, 126, 0.1)',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Folder size={14} /> <span>{currentCategoryName}</span>
+                </Link>
+              ) : (
+                <span style={badgeStyle}>
+                  <Folder size={14} /> <span>{currentCategoryName}</span>
+                </span>
+              )}
             </div>
 
             {item.url && (
