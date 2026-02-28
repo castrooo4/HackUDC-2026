@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState, useMemo} from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import { health, listInbox, createInboxItem, getInboxItem } from "./api/inbox";
@@ -14,6 +14,8 @@ import CarpetaView from "./views/CarpetaView";
 import MapaView from "./views/MapaView";
 import CiudadesView from "./views/CiudadesView";
 
+import { Filter, LayoutGrid } from "lucide-react";
+
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
   const [items, setItems] = useState([]);
@@ -25,7 +27,44 @@ export default function App() {
   const [detailError, setDetailError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [filterType, setFilterType] = useState("ALL"); // ALL, IMAGE, YOUTUBE, TEXT, PDF
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [token, setToken] = useState(localStorage.getItem("token"));
+
+  const [sortType, setSortType] = useState("recent");
+
+  const filteredAndSortedItems = useMemo(() => {
+    let result = [...items];
+    
+    // Filtro por tipo
+    if (filterType !== "ALL") {
+      result = result.filter(item => item.item_type === filterType);
+    }
+
+    // Filtro por búsqueda
+    if (searchQuery) {
+      result = result.filter(item => 
+        item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.content?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Ordenar por más reciente por defecto (estilo feed)
+    return result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }, [items, filterType, searchQuery]);
+
+  const getSortedItems = () => {
+    const sorted = [...items];
+    if (sortType === "recent") {
+      return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    } else if (sortType === "oldest") {
+      return sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    } else if (sortType === "title") {
+      return sorted.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+    }
+    return sorted;
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -118,16 +157,37 @@ export default function App() {
             <TopBar healthOk={healthOk} total={items.length} onLogout={handleLogout} />
 
             <Routes>
-              <Route
-                path="/"
-                element={
-                  loadingList ? (
-                    <div className="loading">Sincronizando cerebro digital...</div>
+              <Route path="/" element={
+                <>
+                  {/* Barra de Búsqueda y Filtros estilo Pinterest */}
+                  <div style={pinterestHeaderStyle}>
+                    <input 
+                      type="text" 
+                      placeholder="Buscar en tu memoria..." 
+                      style={searchBarStyle}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    
+                    <div style={pillContainerStyle}>
+                      {['ALL', 'IMAGE', 'YOUTUBE', 'TEXT', 'PDF'].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setFilterType(type)}
+                          style={filterType === type ? activePillStyle : pillStyle}
+                        >
+                          {type === 'ALL' ? 'Todo' : type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {loadingList ? (
+                    <div className="loading">Sincronizando...</div>
                   ) : (
-                    <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
-                  )
-                }
-              />
+                    <CardGrid items={filteredAndSortedItems} setItems={setItems} onOpen={openDetail} />
+                  )}
+                </>
+              } />
               <Route path="/novedades" element={<Novedades onOpenDetail={openDetail} />} />
               <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} />} />
               <Route path="/mapa" element={<MapaView items={items} onOpenDetail={openDetail} />} />
@@ -172,4 +232,68 @@ const fabStyle = {
   boxShadow: "0 0 20px rgba(70,211,126,0.4)",
   zIndex: 1000,
   transition: "transform 0.2s",
+};
+
+const filterBarStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  marginBottom: "20px",
+  padding: "0 10px"
+};
+
+const selectStyle = {
+  background: "var(--card-bg)",
+  color: "var(--text)",
+  border: "1px solid rgba(70, 211, 126, 0.3)",
+  borderRadius: "10px",
+  padding: "5px 10px",
+  outline: "none",
+  cursor: "pointer",
+  fontSize: "0.85rem"
+};
+
+// Estilos Pinterest
+const pinterestHeaderStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "20px",
+  marginBottom: "30px",
+  alignItems: "center"
+};
+
+const searchBarStyle = {
+  width: "100%",
+  maxWidth: "600px",
+  padding: "12px 25px",
+  borderRadius: "50px",
+  border: "none",
+  background: "rgba(255,255,255,0.1)",
+  color: "white",
+  fontSize: "1rem",
+  outline: "none",
+  boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+};
+
+const pillContainerStyle = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  justifyContent: "center"
+};
+
+const pillStyle = {
+  padding: "8px 20px",
+  borderRadius: "20px",
+  border: "none",
+  background: "transparent",
+  color: "var(--text)",
+  cursor: "pointer",
+  fontWeight: "600",
+  transition: "all 0.2s"
+};
+
+const activePillStyle = {
+  ...pillStyle,
+  background: "var(--neon)",
+  color: "black"
 };

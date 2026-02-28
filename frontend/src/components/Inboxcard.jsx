@@ -1,108 +1,161 @@
-﻿import { useSortable } from "@dnd-kit/sortable";
+﻿import React, { useState } from "react";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState } from "react";
+import { Video, FileText, Globe, ImageIcon, FileJson } from "lucide-react";
 
 export default function InboxCard({ item, onOpen }) {
   const [isHovered, setIsHovered] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  
+  // 1. REINTEGRACIÓN DE DND-KIT (Obligatorio para que funcione)
+  const { 
+    attributes, 
+    listeners, 
+    setNodeRef, 
+    transform, 
+    transition, 
+    isDragging 
+  } = useSortable({ id: item.id });
 
   const style = {
     ...cardStyle,
-    width: "100%",
-    height: "auto",
-    minHeight: "120px",
     transform: CSS.Transform.toString(transform) || (isHovered ? "scale(1.02)" : "scale(1)"),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    cursor: isDragging ? "grabbing" : "grab",
-    boxShadow: isHovered && !isDragging ? "0 0 25px rgba(70, 211, 126, 0.4)" : "none",
+    cursor: isDragging ? "grabbing" : "pointer",
+    boxShadow: isHovered && !isDragging ? "0 12px 24px rgba(0,0,0,0.4)" : "none",
     zIndex: isDragging ? 999 : isHovered ? 10 : 1,
   };
 
+  const renderMedia = () => {
+    // 2. LÓGICA PARA YOUTUBE
+    if (item.item_type === "YOUTUBE" && item.url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = item.url.match(regExp);
+      const videoId = (match && match[2].length === 11) ? match[2] : null;
+
+      if (videoId) {
+        return (
+          <div style={videoContainerStyle}>
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
+              title={item.title}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        );
+      }
+    }
+
+    // 3. IMAGEN (Usando preview_base64 que es el campo real)
+    if (item.preview_base64) {
+      const src = item.preview_base64.startsWith("data:") 
+        ? item.preview_base64 
+        : `data:image/jpeg;base64,${item.preview_base64}`;
+      return <img src={src} alt={item.title} style={imageStyle} />;
+    }
+
+    // FALLBACK: Si no hay media, mostrar icono según el tipo
+    return (
+      <div style={iconFallbackStyle}>
+        {item.item_type === "TEXT" && <FileText size={40} opacity={0.4} />}
+        {item.item_type === "WEB" && <Globe size={40} opacity={0.4} />}
+        {item.item_type === "PDF" && <FileJson size={40} opacity={0.4} />}
+        {(!item.item_type || item.item_type === "IMAGE") && <ImageIcon size={40} opacity={0.4} />}
+      </div>
+    );
+  };
+
   return (
-    <button
+    <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => {
-        if (!isDragging) onOpen(item.id);
-      }}
+      onClick={() => !isDragging && onOpen(item.id)} //
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div style={containerStyle}>
-        {item.preview_base64 && (
-          <img
-            src={item.preview_base64.startsWith("data:") ? item.preview_base64 : `data:image/jpeg;base64,${item.preview_base64}`}
-            style={previewStyle}
-            alt={`Preview de ${item.title || item.id}`}
-          />
+      {renderMedia()}
+      
+      <div style={infoPadding}>
+        <div style={sourceTagStyle}>{item.source || "inbox"}</div>
+        <h4 style={titleStyle}>{item.title || `Nota #${item.id}`}</h4>
+        {item.location_city && (
+          <span style={tagStyle}>{item.location_city}</span>
         )}
-
-        <div style={titleStyle}>{item.title || `Nota #${item.id}`}</div>
-
-        {item.item_type === "TEXT" && !item.preview_base64 && <div style={contentStyle}>{item.content}</div>}
-
-        <div style={sourceStyle}>
-          {item.source || "inbox"} - {item.item_type}
-        </div>
       </div>
-    </button>
+    </div>
   );
 }
 
-const previewStyle = {
+// --- ESTILOS OPTIMIZADOS ---
+const cardStyle = {
+  breakInside: "avoid",
+  marginBottom: "24px",
+  borderRadius: "20px",
+  background: "var(--card-bg)",
+  border: "1px solid rgba(70, 211, 126, 0.2)",
+  overflow: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  width: "100%",
+};
+
+const videoContainerStyle = {
+  width: "100%",
+  aspectRatio: "16/9",
+  background: "#000",
+};
+
+const imageStyle = {
   width: "100%",
   height: "auto",
-  borderRadius: "16px",
-  marginBottom: "15px",
-  objectFit: "cover",
-  border: "1px solid rgba(70, 211, 126, 0.1)",
+  display: "block",
 };
 
-const containerStyle = {
-  display: "flex",
-  flexDirection: "column",
+const iconFallbackStyle = {
   width: "100%",
-  textAlign: "center",
+  height: "140px",
+  display: "flex",
   alignItems: "center",
+  justifyContent: "center",
+  background: "rgba(255,255,255,0.02)",
+  color: "var(--neon)",
 };
 
-const cardStyle = {
+const infoPadding = {
+  padding: "16px",
   display: "flex",
   flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "flex-start",
-  borderRadius: "40px",
-  border: "3px solid #46d37e",
-  background: "rgba(20, 25, 22, 0.7)",
-  padding: "26px",
-  transition: "all 0.3s ease",
-  outline: "none",
-  overflow: "hidden",
+  gap: "8px",
 };
 
-const contentStyle = {
-  color: "rgba(215, 239, 224, 0.8)",
-  fontSize: "1rem",
-  lineHeight: "1.5",
-  textAlign: "center",
-  wordBreak: "break-word",
-  marginTop: "8px",
+const sourceTagStyle = {
+  fontSize: "0.65rem",
+  fontWeight: "800",
+  color: "var(--neon)",
+  textTransform: "uppercase",
+  opacity: 0.5,
 };
 
 const titleStyle = {
-  color: "#46d37e",
-  fontSize: "1.2rem",
-  fontWeight: "bold",
-  textTransform: "uppercase",
+  margin: 0,
+  fontSize: "1rem",
+  fontWeight: "700",
+  color: "white",
+  lineHeight: "1.4",
 };
 
-const sourceStyle = {
-  fontSize: "0.75rem",
-  color: "#46d37e",
-  opacity: 0.5,
-  marginTop: "10px",
-  fontWeight: "800",
+const tagStyle = {
+  fontSize: "0.7rem",
+  background: "rgba(70, 211, 126, 0.1)",
+  color: "var(--neon)",
+  padding: "4px 10px",
+  borderRadius: "8px",
+  alignSelf: "flex-start",
+  border: "1px solid rgba(70, 211, 126, 0.2)",
 };
