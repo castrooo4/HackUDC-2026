@@ -100,6 +100,7 @@ def test_telegram_webhook_ignores_unlinked_chat(client, auth_headers):
 def test_telegram_ingest_photo_note(client, monkeypatch, auth_headers):
     _link_chat(client, auth_headers, chat_id=7001, user_id=900)
     image_bytes = _build_png_bytes()
+    monkeypatch.setattr(settings, "TELEGRAM_BOT_TOKEN", "test-bot-token")
 
     def fake_get(url, params=None, timeout=8):
         if "getFile" in url:

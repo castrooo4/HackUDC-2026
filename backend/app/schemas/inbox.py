@@ -16,6 +16,13 @@ class InboxCreate(BaseModel):
                     "content": "Nota rapida para revisar arquitectura del frontend",
                 },
                 {
+                    "source": "web",
+                    "item_type": "TEXT",
+                    "content": "Nota capturada durante una reunion",
+                    "location_lat": 43.3623,
+                    "location_lon": -8.4115,
+                },
+                {
                     "source": "extension",
                     "item_type": "YOUTUBE",
                     "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -53,6 +60,14 @@ class InboxCreate(BaseModel):
         default=None,
         description="URL del recurso. Obligatorio para YOUTUBE y WEB. Opcional para IMAGE/PDF",
     )
+    location_lat: Optional[float] = Field(
+        default=None,
+        description="Latitud de la captura (-90 a 90). Opcional.",
+    )
+    location_lon: Optional[float] = Field(
+        default=None,
+        description="Longitud de la captura (-180 a 180). Opcional.",
+    )
     file_base64: Optional[str] = Field(
         default=None,
         description="Archivo en base64 (data URL o payload base64). Usado para IMAGE/PDF",
@@ -85,6 +100,30 @@ class InboxCreate(BaseModel):
             return value
         cleaned = value.strip()
         return cleaned if cleaned else None
+
+    @field_validator("location_lat")
+    @classmethod
+    def validate_lat(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise ValueError("location_lat debe estar entre -90 y 90")
+        return value
+
+    @field_validator("location_lon")
+    @classmethod
+    def validate_lon(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise ValueError("location_lon debe estar entre -180 y 180")
+        return value
+
+    @model_validator(mode="after")
+    def validate_location_pair(self):
+        if (self.location_lat is None) != (self.location_lon is None):
+            raise ValueError("debes enviar location_lat y location_lon juntos")
+        return self
 
     @model_validator(mode="after")
     def validate_payload_by_type(self):
@@ -122,7 +161,7 @@ class InboxRead(BaseModel):
                 "favicon_base64": None,
                 "mime_type": "video/youtube",
                 "metadata_json": {"video_id": "dQw4w9WgXcQ", "preview_kind": "youtube"},
-                "status": "PENDING",
+                "status": "PROCESSED",
             }
         },
     )
@@ -131,11 +170,17 @@ class InboxRead(BaseModel):
     created_at: datetime
     user_id: int
     directory_id: Optional[int]
-    source: str
+    source: str = Field(description="Origen de la captura")
     item_type: InboxItemType
     title: Optional[str]
     content: str
     url: Optional[str]
+    location_lat: Optional[float] = Field(default=None, description="Latitud original capturada")
+    location_lon: Optional[float] = Field(default=None, description="Longitud original capturada")
+    location_city: Optional[str] = Field(
+        default=None,
+        description="Ciudad inferida automaticamente desde location_lat/location_lon",
+    )
     preview_base64: Optional[str]
     favicon_base64: Optional[str]
     mime_type: Optional[str]
@@ -143,10 +188,26 @@ class InboxRead(BaseModel):
     status: InboxStatus
 
 
+class InboxRecommendationRead(BaseModel):
+    item: InboxRead
+    distance_km: float = Field(description="Distancia en km respecto al inbox base")
+
+
+class InboxCityRead(BaseModel):
+    city: str
+    item_count: int
+
+
 class InboxUpdate(BaseModel):
     source: Optional[str] = None
+    item_type: Optional[InboxItemType] = None
     title: Optional[str] = None
     content: Optional[str] = None
+    url: Optional[str] = None
+    location_lat: Optional[float] = None
+    location_lon: Optional[float] = None
+    file_base64: Optional[str] = None
+    mime_type: Optional[str] = None
 
     @field_validator("title")
     @classmethod
@@ -166,10 +227,47 @@ class InboxUpdate(BaseModel):
             raise ValueError("content no puede estar vacio")
         return cleaned
 
+    @field_validator("url", "file_base64", "mime_type")
+    @classmethod
+    def normalize_optional_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        cleaned = value.strip()
+        return cleaned if cleaned else None
+
+    @field_validator("location_lat")
+    @classmethod
+    def validate_update_lat(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise ValueError("location_lat debe estar entre -90 y 90")
+        return value
+
+    @field_validator("location_lon")
+    @classmethod
+    def validate_update_lon(cls, value: Optional[float]) -> Optional[float]:
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise ValueError("location_lon debe estar entre -180 y 180")
+        return value
+
     @model_validator(mode="after")
     def validate_not_empty_payload(self):
         if not any(
-            value is not None for value in [self.source, self.title, self.content]
+            value is not None
+            for value in [
+                self.source,
+                self.item_type,
+                self.title,
+                self.content,
+                self.url,
+                self.location_lat,
+                self.location_lon,
+                self.file_base64,
+                self.mime_type,
+            ]
         ):
             raise ValueError("debes enviar al menos un campo para actualizar")
         return self

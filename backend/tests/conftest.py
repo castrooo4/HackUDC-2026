@@ -51,3 +51,17 @@ def auth_headers(client):
     )
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(autouse=True)
+def mock_location_city_resolution(monkeypatch):
+    def _fake_resolve_city(lat, lon):
+        if lat is None or lon is None:
+            return None
+        if lat >= 43.0:
+            return "A Coruna"
+        if lat >= 42.0:
+            return "Santiago de Compostela"
+        return "Madrid"
+
+    monkeypatch.setattr("app.routers.inbox.inbox_service.location_service.resolve_city", _fake_resolve_city)

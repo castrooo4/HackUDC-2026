@@ -1,25 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.db.database import get_session
-from app.models.inbox_item import InboxItem, InboxStatus
+from app.models.inbox_item import InboxStatus
 from app.models.user import User
-from app.schemas.inbox import InboxConfirmOrganization, InboxCreate, InboxRead, InboxUpdate
+from app.schemas.inbox import (
+    InboxConfirmOrganization,
+    InboxCityRead,
+    InboxCreate,
+    InboxRead,
+    InboxRecommendationRead,
+    InboxUpdate,
+)
 from app.service.auth_dependencies import get_current_user
-from app.service.directory_service import DirectoryService
-from app.service.inbox_ingest_service import InboxIngestionService
+from app.service.inbox_service import InboxService
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
-ingestion_service = InboxIngestionService()
-directory_service = DirectoryService()
-
-
-def _get_owned_item(session: Session, item_id: int, user_id: int) -> InboxItem:
-    statement = select(InboxItem).where(InboxItem.id == item_id, InboxItem.user_id == user_id)
-    item = session.exec(statement).first()
-    if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
-    return item
+inbox_service = InboxService()
 
 
 @router.post(
@@ -33,7 +30,9 @@ def _get_owned_item(session: Session, item_id: int, user_id: int) -> InboxItem:
         "- YOUTUBE: requiere url\n"
         "- IMAGE: requiere url o file_base64\n"
         "- PDF: requiere url o file_base64\n"
-        "- WEB: requiere url"
+        "- WEB: requiere url\n"
+        "- location_lat y location_lon son opcionales, pero deben enviarse juntos\n"
+        "- si se envian coordenadas, location_city se calcula automaticamente"
     ),
 )
 def create_inbox_item(
@@ -42,43 +41,58 @@ def create_inbox_item(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        processed = ingestion_service.process(payload)
+        return inbox_service.create_item(
+            session,
+            user_id=current_user.id,
+            payload=payload,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
-    item = InboxItem(
-        user_id=current_user.id,
-        source=payload.source,
-        item_type=payload.item_type,
-        title=processed.title,
-        content=processed.content,
-        url=processed.url,
-        preview_base64=processed.preview_base64,
-        favicon_base64=processed.favicon_base64,
-        mime_type=processed.mime_type,
-        metadata_json=processed.metadata_json,
-        status=InboxStatus.PENDING,
-    )
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return directory_service.suggest_directory_for_item(session, current_user.id, item)
-
 
 @router.get("", response_model=list[InboxRead], summary="Listar inbox")
 def list_inbox_items(
     status_filter: InboxStatus | None = Query(default=None, alias="status"),
+    city: str | None = Query(default=None, min_length=1, max_length=120),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    statement = select(InboxItem).where(InboxItem.user_id == current_user.id)
-    if status_filter is not None:
-        statement = statement.where(InboxItem.status == status_filter)
-    statement = statement.order_by(InboxItem.created_at.desc())
-    items = session.exec(statement).all()
-    return items
+    return inbox_service.list_items(
+        session,
+        user_id=current_user.id,
+        status_filter=status_filter,
+        city=city,
+    )
+
+
+@router.get("/cities", response_model=list[InboxCityRead], summary="Listado de ciudades en inbox")
+def list_inbox_cities(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    rows = inbox_service.list_cities(session, user_id=current_user.id)
+    return [InboxCityRead(city=city_name, item_count=count) for city_name, count in rows]
+
+
+@router.get(
+    "/cities/{city}/items",
+    response_model=list[InboxRead],
+    summary="Listar inbox por ciudad",
+)
+def list_inbox_items_by_city(
+    city: str,
+    status_filter: InboxStatus | None = Query(default=None, alias="status"),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    return inbox_service.list_items(
+        session,
+        user_id=current_user.id,
+        status_filter=status_filter,
+        city=city,
+    )
 
 
 @router.get("/{item_id}", response_model=InboxRead, summary="Detalle de item inbox")
@@ -87,7 +101,37 @@ def get_inbox_item(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    return _get_owned_item(session, item_id, current_user.id)
+    item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    return item
+
+
+@router.get(
+    "/{item_id}/nearby",
+    response_model=list[InboxRecommendationRead],
+    summary="Inbox cercanos por id",
+)
+def get_nearby_items_by_id(
+    item_id: int,
+    radius_km: float = Query(default=25.0, gt=0, le=200),
+    limit: int = Query(default=20, ge=1, le=100),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    base_item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not base_item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    try:
+        return inbox_service.get_recommendations_by_item_location(
+            session,
+            base_item=base_item,
+            user_id=current_user.id,
+            radius_km=radius_km,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.patch("/{item_id}", response_model=InboxRead, summary="Actualizar item inbox")
@@ -97,16 +141,13 @@ def update_inbox_item(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    item = _get_owned_item(session, item_id, current_user.id)
-
-    update_data = payload.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(item, key, value)
-
-    session.add(item)
-    session.commit()
-    session.refresh(item)
-    return item
+    item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    try:
+        return inbox_service.update_item(session, item=item, payload=payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Eliminar item inbox")
@@ -115,10 +156,10 @@ def delete_inbox_item(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    item = _get_owned_item(session, item_id, current_user.id)
-
-    session.delete(item)
-    session.commit()
+    item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
+    inbox_service.delete_item(session, item=item)
 
 
 @router.post("/{item_id}/confirm-organization", response_model=InboxRead, summary="Confirmar organizacion")
@@ -128,19 +169,17 @@ def confirm_inbox_item_organization(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    item = _get_owned_item(session, item_id, current_user.id)
-    if item.status != InboxStatus.PROCESSED:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="InboxItem must be PROCESSED to confirm organization",
-        )
+    item = inbox_service.get_owned_item(session, item_id=item_id, user_id=current_user.id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="InboxItem not found")
     try:
-        return directory_service.confirm_item_directory(
+        return inbox_service.confirm_organization(
             session=session,
             user_id=current_user.id,
             item=item,
-            directory_id=payload.directory_id,
-            directory_name=payload.directory_name,
+            payload=payload,
         )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc

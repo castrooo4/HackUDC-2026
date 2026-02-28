@@ -53,6 +53,8 @@ def test_create_text_item(client, auth_headers):
         "source": "extension",
         "item_type": "TEXT",
         "content": "nota rapida para validar flujo de texto",
+        "location_lat": 43.3623,
+        "location_lon": -8.4115,
     }
     response = client.post("/inbox", json=payload, headers=auth_headers)
     data = response.json()
@@ -60,9 +62,39 @@ def test_create_text_item(client, auth_headers):
     assert data["item_type"] == "TEXT"
     assert data["status"] == "PROCESSED"
     assert data["directory_id"] is not None
+    assert data["location_lat"] == 43.3623
+    assert data["location_lon"] == -8.4115
+    assert data["location_city"] == "A Coruna"
     assert data["title"]
     assert data["preview_base64"] is None
     assert data["metadata_json"]["preview_kind"] == "text"
+
+
+def test_create_inbox_with_location_in_body(client, auth_headers):
+    response = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "ubicacion body",
+            "location_lat": 43.1,
+            "location_lon": -8.1,
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["location_lat"] == 43.1
+    assert data["location_lon"] == -8.1
+    assert data["location_city"] == "A Coruna"
+
+
+def test_create_inbox_requires_location_pair_in_body(client, auth_headers):
+    response = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "falta lon", "location_lat": 43.2},
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
 
 
 def test_create_youtube_item(client, monkeypatch, auth_headers):
@@ -263,6 +295,116 @@ def test_list_get_patch_delete_flow(client, auth_headers):
     assert not_found.status_code == 404
 
 
+def test_patch_reingest_validates_type_requirements(client, auth_headers):
+    created = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "item base"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+
+    patched = client.patch(
+        f"/inbox/{item_id}",
+        json={"item_type": "YOUTUBE"},
+        headers=auth_headers,
+    )
+    assert patched.status_code == 422
+
+
+def test_patch_youtube_url_reingests_metadata(client, monkeypatch, auth_headers):
+    thumb1 = _build_png_bytes(640, 360, color=(200, 10, 10))
+    thumb2 = _build_png_bytes(640, 360, color=(10, 200, 10))
+
+    def fake_get(url, timeout=8):
+        if "youtube.com/oembed" in url and "test2" in url:
+            return MockResponse(
+                json_data={
+                    "title": "Video test 2",
+                    "author_name": "Canal Demo",
+                    "thumbnail_url": "https://img.youtube.com/vi/test2/hqdefault.jpg",
+                }
+            )
+        if "youtube.com/oembed" in url and "test" in url:
+            return MockResponse(
+                json_data={
+                    "title": "Video test 1",
+                    "author_name": "Canal Demo",
+                    "thumbnail_url": "https://img.youtube.com/vi/test/hqdefault.jpg",
+                }
+            )
+        if "youtube.com/watch?v=test2" in url:
+            html = "<html><head><meta itemprop='interactionCount' content='200' /></head></html>"
+            return MockResponse(text=html, content=html.encode("utf-8"))
+        if "youtube.com/watch?v=test" in url:
+            html = "<html><head><meta itemprop='interactionCount' content='100' /></head></html>"
+            return MockResponse(text=html, content=html.encode("utf-8"))
+        if "img.youtube.com/vi/test2" in url:
+            return MockResponse(content=thumb2, headers={"content-type": "image/jpeg"})
+        if "img.youtube.com/vi/test/" in url:
+            return MockResponse(content=thumb1, headers={"content-type": "image/jpeg"})
+        raise RuntimeError("unexpected URL")
+
+    monkeypatch.setattr("app.service.inbox_ingest_service.requests.get", fake_get)
+
+    created = client.post(
+        "/inbox",
+        json={"item_type": "YOUTUBE", "url": "https://youtu.be/test"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    assert created.json()["metadata_json"]["video_id"] == "test"
+
+    patched = client.patch(
+        f"/inbox/{item_id}",
+        json={"url": "https://youtu.be/test2"},
+        headers=auth_headers,
+    )
+    assert patched.status_code == 200
+    data = patched.json()
+    assert data["item_type"] == "YOUTUBE"
+    assert data["url"] == "https://youtu.be/test2"
+    assert data["metadata_json"]["video_id"] == "test2"
+    assert data["title"] == "Video test 2"
+    assert data["preview_base64"].startswith("data:image/jpeg;base64,")
+
+
+def test_patch_image_with_base64_reingests_preview(client, monkeypatch, auth_headers):
+    image_url_bytes = _build_png_bytes(300, 200, color=(10, 10, 220))
+    image_base64_bytes = _build_png_bytes(1024, 768, color=(220, 10, 10))
+
+    def fake_get(url, timeout=8):
+        return MockResponse(content=image_url_bytes, headers={"content-type": "image/png"})
+
+    monkeypatch.setattr("app.service.inbox_ingest_service.requests.get", fake_get)
+
+    created = client.post(
+        "/inbox",
+        json={"item_type": "IMAGE", "url": "https://example.com/old.png"},
+        headers=auth_headers,
+    )
+    assert created.status_code == 201
+    item_id = created.json()["id"]
+    assert created.json()["metadata_json"]["width"] == 300
+
+    import base64
+
+    patched = client.patch(
+        f"/inbox/{item_id}",
+        json={
+            "file_base64": "data:image/png;base64," + base64.b64encode(image_base64_bytes).decode("ascii"),
+            "mime_type": "image/png",
+        },
+        headers=auth_headers,
+    )
+    assert patched.status_code == 200
+    data = patched.json()
+    assert data["item_type"] == "IMAGE"
+    assert data["metadata_json"]["width"] == 1024
+    assert data["preview_base64"].startswith("data:image/jpeg;base64,")
+
+
 def test_list_inbox_filter_by_status(client, auth_headers):
     created = client.post(
         "/inbox",
@@ -292,6 +434,194 @@ def test_list_inbox_filter_by_status(client, auth_headers):
     processed_list_after = client.get("/inbox?status=PROCESSED", headers=auth_headers)
     assert processed_list_after.status_code == 200
     assert all(item["id"] != item_id for item in processed_list_after.json())
+
+
+def test_list_inbox_filter_by_city(client, auth_headers):
+    coruna = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "item en coruna",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    madrid = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "item en madrid",
+            "location_lat": 40.4168,
+            "location_lon": -3.7038,
+        },
+        headers=auth_headers,
+    )
+    assert coruna.status_code == 201
+    assert madrid.status_code == 201
+    coruna_id = coruna.json()["id"]
+    madrid_id = madrid.json()["id"]
+
+    filtered = client.get("/inbox?city=a coruna", headers=auth_headers)
+    assert filtered.status_code == 200
+    ids = [item["id"] for item in filtered.json()]
+    assert coruna_id in ids
+    assert madrid_id not in ids
+
+
+def test_list_inbox_items_by_city_endpoint(client, auth_headers):
+    coruna = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "city endpoint coruna",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    madrid = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "city endpoint madrid",
+            "location_lat": 40.4168,
+            "location_lon": -3.7038,
+        },
+        headers=auth_headers,
+    )
+    assert coruna.status_code == 201
+    assert madrid.status_code == 201
+
+    filtered = client.get("/inbox/cities/A%20Coruna/items", headers=auth_headers)
+    assert filtered.status_code == 200
+    ids = [item["id"] for item in filtered.json()]
+    assert coruna.json()["id"] in ids
+    assert madrid.json()["id"] not in ids
+
+
+def test_list_inbox_cities(client, auth_headers):
+    first = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "uno",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    second = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "dos",
+            "location_lat": 43.27,
+            "location_lon": -8.39,
+        },
+        headers=auth_headers,
+    )
+    third = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "tres",
+            "location_lat": 40.4168,
+            "location_lon": -3.7038,
+        },
+        headers=auth_headers,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert third.status_code == 201
+
+    cities = client.get("/inbox/cities", headers=auth_headers)
+    assert cities.status_code == 200
+    data = cities.json()
+    assert {"city": "A Coruna", "item_count": 2} in data
+    assert {"city": "Madrid", "item_count": 1} in data
+
+
+def test_nearby_by_location_from_item(client, auth_headers):
+    base = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "base coruna",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    near = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "santiago",
+            "location_lat": 42.8782,
+            "location_lon": -8.5448,
+        },
+        headers=auth_headers,
+    )
+    far = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "madrid",
+            "location_lat": 40.4168,
+            "location_lon": -3.7038,
+        },
+        headers=auth_headers,
+    )
+    assert base.status_code == 201
+    assert near.status_code == 201
+    assert far.status_code == 201
+
+    base_id = base.json()["id"]
+    near_id = near.json()["id"]
+    far_id = far.json()["id"]
+
+    recommendations = client.get(
+        f"/inbox/{base_id}/nearby?radius_km=80",
+        headers=auth_headers,
+    )
+    assert recommendations.status_code == 200
+    data = recommendations.json()
+    ids = [row["item"]["id"] for row in data]
+    assert near_id in ids
+    assert far_id not in ids
+    assert all("distance_km" in row for row in data)
+
+
+def test_nearby_fail_if_base_item_has_no_location(client, auth_headers):
+    base = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "sin ubicacion"},
+        headers=auth_headers,
+    )
+    assert base.status_code == 201
+
+    response = client.get(
+        f"/inbox/{base.json()['id']}/nearby",
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+def test_recommendations_endpoint_removed(client, auth_headers):
+    base = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "base",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    assert base.status_code == 201
+    response = client.get(f"/inbox/{base.json()['id']}/recommendations", headers=auth_headers)
+    assert response.status_code == 404
 
 
 def test_inbox_isolation_between_users(client, auth_headers):

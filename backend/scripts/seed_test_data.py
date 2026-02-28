@@ -14,6 +14,9 @@ from app.service.directory_service import DirectoryService
 DEMO_EMAIL = "test@gmail.com"
 DEMO_PASSWORD = "test1234"
 DEMO_FULL_NAME = "test"
+CITY_A_CORUNA = "A Coruna"
+CITY_SANTIAGO = "Santiago de Compostela"
+CITY_MADRID = "Madrid"
 
 
 def _make_image_data_url(
@@ -39,6 +42,14 @@ def _root_dir_map(session: Session, user_id: int) -> dict[str, Directory]:
         select(Directory).where(Directory.user_id == user_id, Directory.parent_id.is_(None))
     ).all()
     return {directory.name: directory for directory in roots}
+
+
+def _geo(city: str, lat: float, lon: float) -> dict[str, str | float]:
+    return {
+        "location_city": city,
+        "location_lat": lat,
+        "location_lon": lon,
+    }
 
 
 def seed():
@@ -98,6 +109,7 @@ def seed():
                     "Documentacion tecnica de arquitectura de backend, capas de servicio, "
                     "routers y patrones para mantenibilidad."
                 ),
+                **_geo(CITY_A_CORUNA, 43.3623, -8.4115),
                 metadata_json={"preview_kind": "text", "tags_hint": ["backend", "arquitectura", "docs"]},
             ),
             InboxItem(
@@ -107,6 +119,7 @@ def seed():
                 title="FastAPI Crash Course",
                 content="Guia practica para construir APIs limpias con FastAPI.",
                 url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                **_geo(CITY_A_CORUNA, 43.3630, -8.4100),
                 preview_base64=youtube_preview,
                 mime_type="video/youtube",
                 metadata_json={
@@ -129,6 +142,7 @@ def seed():
                 title="Wireframe Home",
                 content="Diseño preliminar del dashboard principal.",
                 url="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg",
+                **_geo(CITY_A_CORUNA, 43.3650, -8.4060),
                 preview_base64=image_preview,
                 mime_type="image/jpeg",
                 metadata_json={
@@ -147,6 +161,7 @@ def seed():
                 title="API Design Notes",
                 content="Notas de decisiones de diseño de API y convenciones.",
                 url="https://arxiv.org/pdf/1706.03762.pdf",
+                **_geo(CITY_MADRID, 40.4168, -3.7038),
                 preview_base64=pdf_preview,
                 mime_type="application/pdf",
                 metadata_json={
@@ -163,6 +178,7 @@ def seed():
                 title="Python Docs",
                 content="Referencia oficial de Python para librerias y guias.",
                 url="https://www.python.org",
+                **_geo(CITY_SANTIAGO, 42.8782, -8.5448),
                 favicon_base64=favicon_preview,
                 mime_type="text/html",
                 metadata_json={
@@ -173,6 +189,15 @@ def seed():
                     "og_type": "website",
                     "favicon_url": "https://www.python.org/favicon.ico",
                 },
+            ),
+            InboxItem(
+                user_id=user.id,
+                source="seed",
+                item_type=InboxItemType.TEXT,
+                title="Ideas producto comunidad",
+                content="Notas de producto para organizar eventos y medir engagement por ciudad.",
+                **_geo(CITY_MADRID, 40.4210, -3.7000),
+                metadata_json={"preview_kind": "text", "tags_hint": ["producto", "comunidad"]},
             ),
         ]
 
@@ -207,8 +232,14 @@ def seed():
             f"Seed done: user={DEMO_EMAIL}, inbox_total={len(all_items)}, "
             f"processed={processed}, organized={organized}"
         )
+        city_counts: dict[str, int] = {}
+        for item in all_items:
+            if item.location_city:
+                city_counts[item.location_city] = city_counts.get(item.location_city, 0) + 1
+        print(f"Cities distribution: {city_counts}")
         print(f"Login demo -> email: {DEMO_EMAIL} | password: {DEMO_PASSWORD}")
 
 
 if __name__ == "__main__":
     seed()
+

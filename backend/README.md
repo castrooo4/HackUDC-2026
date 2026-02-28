@@ -63,7 +63,10 @@ curl -X DELETE "http://127.0.0.1:8000/inbox/1"
 - `GET /auth/me`
 - `POST /inbox`
 - `GET /inbox`
+- `GET /inbox/cities`
+- `GET /inbox/cities/{city}/items`
 - `GET /inbox/{id}`
+- `GET /inbox/{id}/nearby`
 - `POST /inbox/{id}/confirm-organization`
 - `PATCH /inbox/{id}`
 - `DELETE /inbox/{id}`
@@ -129,18 +132,34 @@ Respuesta:
 Usa ese token en Postman para inbox:
 - `Authorization` tab -> Type: `Bearer Token` -> pega `access_token`
 
+### POST /inbox (campos)
+- `source` (opcional): origen, por ejemplo `extension`, `web`, `telegram`.
+- `item_type` (opcional, default `TEXT`): `TEXT`, `YOUTUBE`, `IMAGE`, `PDF`, `WEB`.
+- `title` (opcional): si no llega, se autogenera según el tipo.
+- `content` (segun tipo): obligatorio en `TEXT`, opcional en otros.
+- `url` (segun tipo): obligatorio en `YOUTUBE` y `WEB`; opcional en `IMAGE` y `PDF`.
+- `file_base64` (segun tipo): permitido en `IMAGE` y `PDF`.
+- `mime_type` (opcional): útil cuando envías `file_base64`.
+- `location_lat` (opcional): latitud en rango `[-90, 90]`.
+- `location_lon` (opcional): longitud en rango `[-180, 180]`.
+- `location_lat` y `location_lon` deben enviarse juntos.
+- si envías coordenadas, el backend calcula y guarda `location_city` automáticamente.
+
 ### Caso 1: TEXT
 Body:
 ```json
 {
   "source": "extension",
   "item_type": "TEXT",
-  "content": "nota rapida de arquitectura para frontend"
+  "content": "nota rapida de arquitectura para frontend",
+  "location_lat": 43.3623,
+  "location_lon": -8.4115
 }
 ```
 Esperado en respuesta:
 - `item_type = "TEXT"`
 - `title` autogenerado si no lo envias
+- `location_city` autogenerada si envias `location_lat` + `location_lon`
 - `preview_base64 = null`
 
 ### Caso 2: YOUTUBE
@@ -226,6 +245,10 @@ Esperado en respuesta:
 ## Consultas de verificacion
 - Listar: `GET http://127.0.0.1:8000/inbox`
 - Listar filtrando estado: `GET http://127.0.0.1:8000/inbox?status=PROCESSED` (tambien `PENDING`, `ORGANIZED`)
+- Listar filtrando por ciudad: `GET http://127.0.0.1:8000/inbox?city=A%20Coruna`
+- Listar ciudades detectadas (para filtros UI): `GET http://127.0.0.1:8000/inbox/cities`
+- Listar inbox de una ciudad concreta: `GET http://127.0.0.1:8000/inbox/cities/A%20Coruna/items`
+- Cercanos por id: `GET http://127.0.0.1:8000/inbox/{id}/nearby?radius_km=25&limit=20`
 - Detalle: `GET http://127.0.0.1:8000/inbox/{id}`
 - Confirmar organizacion: `POST http://127.0.0.1:8000/inbox/{id}/confirm-organization`
 - Ver arbol: `GET http://127.0.0.1:8000/directories/tree`
@@ -255,3 +278,4 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
   -d "url=https://tu-dominio.com/telegram/webhook" \
   -d "secret_token=<TELEGRAM_WEBHOOK_SECRET>"
 ```
+
