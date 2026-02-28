@@ -63,9 +63,14 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
     try {
       await deleteInboxItem(item.id);
       window.postMessage({ type: "REMIT_NEW_ITEM" }, "*"); // Disparamos el walkie-talkie
+
+      // 👇 Lanzamos el Toast de la extensión
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "🗑️ Elemento eliminado", toastType: "success" }, "*");
+
       onClose();
     } catch (err) {
-      alert("Error al eliminar: " + err.message);
+      // Si hay error, lanzamos el Toast rojo
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "❌ Error al eliminar", toastType: "error" }, "*");
     } finally {
       setActionLoading(false);
     }
@@ -73,7 +78,7 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
 
   const handleModifyCategoryClick = () => {
     if (!item.directory_id) {
-      alert("❌ Este elemento aún no está organizado en ninguna carpeta. Ve a la pestaña de Novedades para clasificarlo primero.");
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "⚠️ Ve a Novedades para clasificarlo primero", toastType: "error" }, "*");
       return;
     }
     setNewDirId(item.directory_id);
@@ -85,10 +90,14 @@ export default function InboxDetailModal({ open, item, loading, error, onClose }
     try {
       await updateInboxItem(item.id, { directory_id: parseInt(newDirId) });
       window.postMessage({ type: "REMIT_NEW_ITEM" }, "*"); // Disparamos el walkie-talkie
+
+      // 👇 Lanzamos el Toast de la extensión
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "📁 Movido de carpeta con éxito", toastType: "success" }, "*");
+
       setIsEditingCategory(false);
       onClose();
     } catch (err) {
-      alert("Error al mover de carpeta: " + err.message);
+      window.postMessage({ type: "REMIT_WEB_TOAST", message: "❌ Error al mover", toastType: "error" }, "*");
     } finally {
       setActionLoading(false);
     }

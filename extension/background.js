@@ -103,6 +103,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     const url = request.url;
     let payload = { source: "extension", url: url };
 
+    if (request.lat && request.lon) {
+      payload.location_lat = request.lat;
+      payload.location_lon = request.lon;
+    }
+
     // 1. Si es YouTube
     if (url.includes("youtube.com/watch") || url.includes("youtu.be/") || url.includes("/shorts/")) {
       payload.item_type = "YOUTUBE";

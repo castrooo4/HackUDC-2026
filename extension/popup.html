@@ -36,6 +36,51 @@
       display: block;
       margin-top: 10px;
     }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 20px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #555;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px;
+      width: 14px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(14px);
+    }
   </style>
 </head>
 
@@ -64,6 +109,16 @@
   <div id="mainView" class="hidden">
     <textarea id="content" placeholder="Escribe tu nota o pega aquí una URL..." rows="3"
       style="width:100%; background:#222; color:white; border:1px solid #333; border-radius:4px; margin-bottom:10px;"></textarea>
+
+    <div
+      style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+      <span style="font-size: 13px; color: #ccc;">📍 Adjuntar mi ubicación</span>
+      <label class="switch">
+        <input type="checkbox" id="locationToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+
     <button id="saveBtn" style="background: #4CAF50; width: 100%; padding: 10px; margin-bottom: 8px;">Enviar a
       Inbox</button>
     <button id="autoSaveBtn" style="background: #FF9800; width: 100%; padding: 10px; margin-bottom: 8px;">🚀 Guardar

@@ -38,3 +38,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     showRemitToast(request.message, request.type);
   }
 });
+
+window.addEventListener("message", (event) => {
+  // Verificamos que el mensaje venga de nuestra propia pestaña y tenga la etiqueta correcta
+  if (event.source === window && event.data.type === "REMIT_WEB_TOAST") {
+    showRemitToast(event.data.message, event.data.toastType);
+  }
+});
