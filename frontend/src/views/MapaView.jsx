@@ -20,6 +20,10 @@ export default function MapaView({ items = [], onOpenDetail }) {
     () =>
       (items || []).filter(
         (item) =>
+          item.location_lat !== null &&
+          item.location_lat !== undefined &&
+          item.location_lon !== null &&
+          item.location_lon !== undefined &&
           Number.isFinite(Number(item.location_lat)) &&
           Number.isFinite(Number(item.location_lon))
       ),

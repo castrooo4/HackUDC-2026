@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/sortable";
 import InboxCard from "./Inboxcard";
 
-export default function CardGrid({ items, setItems, onOpen, onDelete }) {
+export default function CardGrid({ items, setItems, onOpen, onDelete, onPin }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -41,7 +41,12 @@ export default function CardGrid({ items, setItems, onOpen, onDelete }) {
         <div style={masonryContainerStyle}>
           {items.map((item) => (
             <div key={item.id} style={itemWrapperStyle}>
-              <InboxCard item={item} onOpen={onOpen} onDelete={onDelete} />
+              <InboxCard
+                item={item}
+                onOpen={onOpen}
+                onDelete={onDelete}
+                onPin={onPin}
+              />
             </div>
           ))}
         </div>

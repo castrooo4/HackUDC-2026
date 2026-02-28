@@ -2,7 +2,7 @@
 import { useParams } from "react-router-dom";
 import { Folder } from "lucide-react";
 
-import { getOrganizedInbox, getDirectoriesTree } from "../api/inbox";
+import { getOrganizedInbox, getDirectoriesTree, updateInboxItem } from "../api/inbox";
 import CardGrid from "../components/CardGrid";
 import InboxFilters from "../components/InboxFilters";
 import { filterAndSortInboxItems } from "../utils/inboxFilters";
@@ -60,6 +60,27 @@ export default function CarpetaView({ onOpenDetail, onDeleteItem }) {
     return () => window.removeEventListener("message", handleSync);
   }, [folderId]);
 
+  async function handleTogglePin(item) {
+    const newPinnedState = !item.is_pinned;
+
+    // Actualización optimista: cambiamos el estado en la interfaz inmediatamente
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, is_pinned: newPinnedState } : i))
+    );
+
+    try {
+      // Intentamos guardar el cambio en el servidor
+      await updateInboxItem(item.id, { is_pinned: newPinnedState });
+    } catch (error) {
+      console.error("Error al anclar:", error);
+      // Si falla, revertimos el cambio en la interfaz
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, is_pinned: !newPinnedState } : i))
+      );
+      alert("No se pudo guardar el anclaje");
+    }
+  }
+
   if (loading) {
     return <div style={{ padding: "40px", textAlign: "center", opacity: 0.7 }}>Abriendo carpeta...</div>;
   }
@@ -103,7 +124,7 @@ export default function CarpetaView({ onOpenDetail, onDeleteItem }) {
           <p style={{ opacity: 0.7 }}>Ajusta el buscador o el tipo para ver elementos.</p>
         </div>
       ) : (
-        <CardGrid items={filteredAndSortedItems} setItems={setItems} onOpen={onOpenDetail} onDelete={onDeleteItem} />
+        <CardGrid items={filteredAndSortedItems} setItems={setItems} onOpen={onOpenDetail} onDelete={onDeleteItem} onPin={handleTogglePin} />
       )}
     </div>
   );

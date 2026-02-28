@@ -1,9 +1,11 @@
 ﻿import React, { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FileJson, FileText, Globe, ImageIcon, X } from "lucide-react";
+// 1. Añade "Pin" aquí
+import { FileJson, FileText, Globe, ImageIcon, X, Pin } from "lucide-react";
 
-export default function InboxCard({ item, onOpen, onDelete }) {
+// 2. Asegúrate de recibir "onPin" en los props
+export default function InboxCard({ item, onOpen, onDelete, onPin }) {
   const [isHovered, setIsHovered] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
@@ -18,6 +20,7 @@ export default function InboxCard({ item, onOpen, onDelete }) {
   };
 
   const renderMedia = () => {
+    // ... (el código de renderMedia que ya tenías) ...
     if (item.item_type === "YOUTUBE" && item.url) {
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = item.url.match(regExp);
@@ -69,6 +72,7 @@ export default function InboxCard({ item, onOpen, onDelete }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Botón de Eliminar */}
       {onDelete ? (
         <button
           type="button"
@@ -83,10 +87,31 @@ export default function InboxCard({ item, onOpen, onDelete }) {
             event.stopPropagation();
             onDelete(item.id);
           }}
-          aria-label="Eliminar item"
-          title="Eliminar item"
         >
           <X size={14} />
+        </button>
+      ) : null}
+
+      {/* 3. BOTÓN DE LA CHINCHETA (Añade esto aquí) */}
+      {onPin ? (
+        <button
+          type="button"
+          style={{
+            ...pinBtnStyle,
+            opacity: item.is_pinned || isHovered ? 1 : 0,
+            transform: item.is_pinned || isHovered ? "translateY(0)" : "translateY(-4px)",
+            pointerEvents: item.is_pinned || isHovered ? "auto" : "none",
+            color: item.is_pinned ? "var(--neon)" : "white",
+            background: item.is_pinned ? "rgba(70, 211, 126, 0.2)" : "rgba(11, 15, 13, 0.78)",
+            borderColor: item.is_pinned ? "var(--neon)" : "rgba(255, 255, 255, 0.2)",
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onPin(item);
+          }}
+        >
+          <Pin size={14} fill={item.is_pinned ? "currentColor" : "none"} />
         </button>
       ) : null}
 
@@ -101,6 +126,24 @@ export default function InboxCard({ item, onOpen, onDelete }) {
   );
 }
 
+// 4. Añade este estilo al final del archivo
+const pinBtnStyle = {
+  position: "absolute",
+  top: "12px",
+  left: "12px",
+  width: "26px",
+  height: "26px",
+  borderRadius: "999px",
+  border: "1px solid",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  zIndex: 20,
+  transition: "all 0.2s ease",
+};
+
+// ... (el resto de estilos que ya tenías) ...
 const cardStyle = {
   position: "relative",
   breakInside: "avoid",

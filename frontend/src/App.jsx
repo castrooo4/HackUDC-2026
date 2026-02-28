@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import { listInbox, createInboxItem, getInboxItem, deleteInboxItem } from "./api/inbox";
+// 1. Añadimos updateInboxItem a las importaciones
+import { listInbox, createInboxItem, getInboxItem, deleteInboxItem, updateInboxItem } from "./api/inbox";
 import { logout } from "./api/auth";
 import TopBar from "./components/TopBar.jsx";
 import CardGrid from "./components/CardGrid";
@@ -106,6 +107,26 @@ export default function App() {
     }
   }
 
+  // 2. Añadimos la función handleTogglePin para la pantalla principal
+  async function handleTogglePin(item) {
+    const newPinnedState = !item.is_pinned;
+
+    // Actualización optimista
+    setItems((prev) =>
+      prev.map((i) => (i.id === item.id ? { ...i, is_pinned: newPinnedState } : i))
+    );
+
+    try {
+      await updateInboxItem(item.id, { is_pinned: newPinnedState });
+    } catch (error) {
+      console.error("Error al anclar:", error);
+      // Revertir en caso de error
+      setItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, is_pinned: !newPinnedState } : i))
+      );
+    }
+  }
+
   if (!token) {
     return (
       <div className="app">
@@ -140,7 +161,13 @@ export default function App() {
                     {loadingList ? (
                       <div className="loading">Sincronizando...</div>
                     ) : (
-                      <CardGrid items={filteredAndSortedItems} setItems={setItems} onOpen={openDetail} onDelete={handleDeleteItem} />
+                      <CardGrid
+                        items={filteredAndSortedItems}
+                        setItems={setItems}
+                        onOpen={openDetail}
+                        onDelete={handleDeleteItem}
+                        onPin={handleTogglePin} // 3. Pasamos la función al CardGrid
+                      />
                     )}
                   </>
                 }

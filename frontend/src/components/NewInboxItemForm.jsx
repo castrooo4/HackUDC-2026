@@ -1,8 +1,28 @@
 ﻿import { useState } from "react";
 
+// 1. Añadimos la función para capturar el GPS
+function obtenerUbicacion() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("El navegador no soporta geolocalización."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (posicion) => {
+        resolve({
+          lat: posicion.coords.latitude,
+          lon: posicion.coords.longitude
+        });
+      },
+      (error) => reject(error),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  });
+}
+
 export default function NewInboxItemForm({ onCreate }) {
   const [title, setTitle] = useState("");
-  const [source, setSource] = useState("extension");
+  const [source, setSource] = useState("web"); // Cambiado por defecto a 'web'
   const [content, setContent] = useState("");
   const [itemType, setItemType] = useState("TEXT");
   const [loading, setLoading] = useState(false);
@@ -36,7 +56,7 @@ export default function NewInboxItemForm({ onCreate }) {
 
     const payload = {
       title: title.trim() || undefined,
-      source: source.trim() || "extension",
+      source: source.trim() || "web",
       item_type: detectedType,
     };
 
@@ -50,6 +70,15 @@ export default function NewInboxItemForm({ onCreate }) {
       }
     } else {
       payload.url = rawContent;
+    }
+
+    // 2. Intentamos capturar la ubicación antes de enviar el payload
+    try {
+      const ubicacion = await obtenerUbicacion();
+      payload.location_lat = ubicacion.lat;
+      payload.location_lon = ubicacion.lon;
+    } catch (error) {
+      console.warn("No se pudo obtener la ubicación. Se enviará sin coordenadas.", error);
     }
 
     try {
@@ -75,7 +104,7 @@ export default function NewInboxItemForm({ onCreate }) {
         />
       </div>
 
-      <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Fuente (ej: extension)" style={inputStyle} />
+      <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Fuente (ej: web)" style={inputStyle} />
 
       <textarea
         value={content}
