@@ -48,6 +48,15 @@ export default function CarpetaView({ onOpenDetail }) {
 
     // El useEffect se vuelve a ejecutar cada vez que cambia el ID en la URL
     loadData();
+
+    const handleSync = (event) => {
+      if (event.data?.type === "REMIT_NEW_ITEM") {
+        console.log("Magia: Recargando la carpeta en segundo plano...");
+        loadData();
+      }
+    };
+    window.addEventListener("message", handleSync);
+    return () => window.removeEventListener("message", handleSync);
   }, [folderId]);
 
   if (loading) {
