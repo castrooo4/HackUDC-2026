@@ -26,6 +26,8 @@ Base URL: `http://127.0.0.1:8000`
 - `app/utils`: utilidades de preview/base64/imagenes
 
 ## Endpoints
+- `POST /auth/register`
+- `POST /auth/login`
 - `POST /inbox`
 - `GET /inbox`
 - `GET /inbox/{id}`
@@ -40,6 +42,39 @@ Request base:
 - URL: `http://127.0.0.1:8000/inbox`
 - Headers: `Content-Type: application/json`
 - Body: `raw` + `JSON`
+- Header obligatorio para inbox: `Authorization: Bearer <access_token>`
+
+## Auth (Postman)
+
+### Register
+- Method: `POST`
+- URL: `http://127.0.0.1:8000/auth/register`
+- Body (raw JSON):
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPass123",
+  "full_name": "User Demo"
+}
+```
+
+### Login
+- Method: `POST`
+- URL: `http://127.0.0.1:8000/auth/login`
+- Body (raw JSON):
+```json
+{
+  "email": "user@example.com",
+  "password": "StrongPass123"
+}
+```
+Respuesta:
+- `access_token`
+- `token_type` (`bearer`)
+- `expires_in`
+
+Usa ese token en Postman para inbox:
+- `Authorization` tab -> Type: `Bearer Token` -> pega `access_token`
 
 ### Caso 1: TEXT
 Body:

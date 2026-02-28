@@ -6,6 +6,7 @@ from sqlmodel import SQLModel
 
 from app.config import settings
 from app.models.inbox_item import InboxItem  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 config = context.config
 

@@ -129,6 +129,7 @@ class InboxRead(BaseModel):
 
     id: int
     created_at: datetime
+    user_id: int
     source: str
     item_type: InboxItemType
     title: Optional[str]
