@@ -87,3 +87,101 @@
   opacity: 1 !important;
   transform: translateY(0) !important;
 }
+
+/* --- BOTÓN DENTRO DEL REPRODUCTOR DE YOUTUBE --- */
+.remit-player-btn {
+  background-color: #272727 !important;
+  /* Color gris oscuro nativo de YouTube */
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 18px !important;
+  padding: 0 16px !important;
+  height: 36px !important;
+  font-family: 'Roboto', 'Arial', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  margin-left: 15px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.2s !important;
+  white-space: nowrap !important;
+}
+
+.remit-player-btn:hover {
+  background-color: #3f3f3f !important;
+}
+
+/* --- BOTÓN FLOTANTE PARA YOUTUBE SHORTS (VERSIÓN FORZADA) --- */
+.remit-shorts-btn {
+  position: absolute !important;
+  top: 20px !important;
+  right: 60px !important;
+  /* Lo movemos un poco a la izquierda para que no choque con los botones de YouTube */
+  background-color: #4CAF50 !important;
+  /* Verde Remit para que resalte */
+  color: white !important;
+  border: 2px solid white !important;
+  border-radius: 50% !important;
+  width: 50px !important;
+  height: 50px !important;
+  font-size: 24px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 999999 !important;
+  /* Máxima prioridad visual */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5) !important;
+  transition: transform 0.2s !important;
+}
+
+.remit-shorts-btn:hover {
+  transform: scale(1.1) !important;
+}
+
+
+/* --- WIDGET FLOTANTE UNIVERSAL (TODAS LAS WEBS) --- */
+.remit-universal-widget {
+  position: fixed !important;
+  bottom: 20px !important;
+  left: 20px !important;
+  /* Lo ponemos a la izquierda para no pisar el Toast */
+  background-color: #1a1a1a !important;
+  color: white !important;
+  border: 2px solid #4CAF50 !important;
+  border-radius: 50px !important;
+  padding: 10px 14px !important;
+  font-family: 'Segoe UI', Tahoma, sans-serif !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  z-index: 2147483646 !important;
+  /* Un punto por debajo del Toast */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  opacity: 0.6 !important;
+  /* Semitransparente para no molestar */
+}
+
+.remit-universal-widget:hover {
+  opacity: 1 !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 14px rgba(76, 175, 80, 0.4) !important;
+}
+
+.remit-widget-text {
+  font-size: 14px !important;
+  font-weight: bold !important;
+  white-space: nowrap !important;
+  display: none;
+  /* Oculto por defecto */
+}
+
+/* Al hacer hover en el botón, mostramos el texto */
+.remit-universal-widget:hover .remit-widget-text {
+  display: inline-block !important;
+}

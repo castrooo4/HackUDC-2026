@@ -1,52 +1,43 @@
+// --- FUNCIONAMIENTO DEL POPUP REMIT ---
+
+// 1. Botón: ENVIAR MANUAL (Texto/URL del área de texto)
 document.getElementById('saveBtn').addEventListener('click', () => {
   const content = document.getElementById('content').value.trim();
   const status = document.getElementById('status');
 
-  // 1. Validación básica
   if (!content) {
-    status.textContent = "¡Escribe o pega algo primero!";
-    status.style.color = "#ff4444";
+    status.textContent = "⚠️ Escribe algo primero.";
     return;
   }
 
-  status.textContent = "Enviando...";
-  status.style.color = "#aaa";
-
+  // Detectamos si es URL o Texto
   let payload = { source: "extension" };
-
-  // 2. El Detector Inteligente: Comprueba si empieza por http://, https:// o www.
-  const isUrl = /^https?:\/\//i.test(content) || /^www\./i.test(content);
-
-  if (isUrl) {
-    // Si es un enlace, analizamos qué tipo de enlace es
-    let itemType = "WEB";
-    if (content.includes("youtube.com/watch") || content.includes("youtu.be/")) {
-      itemType = "YOUTUBE";
-    } else if (content.toLowerCase().endsWith(".pdf")) {
-      itemType = "PDF";
-    } else if (content.match(/\.(jpeg|jpg|gif|png)$/i)) {
-      itemType = "IMAGE";
-    }
-
-    payload.item_type = itemType;
-    payload.url = content; // Lo mandamos como URL
+  if (content.startsWith('http')) {
+    chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: content });
   } else {
-    // Si no es un enlace, asumimos que es una nota rápida
     payload.item_type = "TEXT";
-    payload.content = content; // Lo mandamos como content
+    payload.content = content;
+    chrome.runtime.sendMessage({ action: "SAVE_MANUAL", payload: payload });
   }
 
-  // 3. Se lo pasamos al background.js
-  chrome.runtime.sendMessage({ action: "SAVE_MANUAL", payload: payload }, (response) => {
-    if (chrome.runtime.lastError) {
-      status.textContent = "Error interno. Revisa la consola.";
-      status.style.color = "#ff4444";
-    } else {
-      status.textContent = "¡✅ Guardado en Remit!";
-      status.style.color = "#4CAF50";
+  status.textContent = "✅ Enviado";
+  setTimeout(() => window.close(), 1000);
+});
 
-      // Cerramos el popup automáticamente después de 1.5 segundos
-      setTimeout(() => { window.close(); }, 1500);
+// 2. Botón: GUARDAR ESTA PESTAÑA (Automático)
+document.getElementById('autoSaveBtn').addEventListener('click', () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: tabs[0].url });
+      document.getElementById('status').textContent = "✅ Pestaña guardada";
+      setTimeout(() => window.close(), 1000);
     }
   });
+});
+
+// 3. Botón: RECORTAR Y GUARDAR
+document.getElementById('screenshotBtn').addEventListener('click', () => {
+  // Enviamos la orden al background y cerramos el popup para que no estorbe
+  chrome.runtime.sendMessage({ action: "INIT_SCREENSHOT" });
+  window.close();
 });

@@ -6,12 +6,11 @@
   "permissions": [
     "contextMenus",
     "activeTab",
-    "scripting"
+    "scripting",
+    "clipboardRead"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "*://*.google.com/*",
-    "*://*.google.es/*",
+    "<all_urls>",
     "http://localhost:8000/*"
   ],
   "background": {
@@ -43,8 +42,11 @@
         "content_scripts/styles.css"
       ],
       "js": [
-        "content_scripts/toast.js"
-      ]
+        "content_scripts/toast.js",
+        "content_scripts/widget.js",
+        "content_scripts/screenshot.js"
+      ],
+      "run_at": "document_start"
     }
   ],
   "action": {
