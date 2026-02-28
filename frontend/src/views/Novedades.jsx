@@ -1,7 +1,11 @@
 // src/views/Novedades.jsx
 import React, { useState, useEffect } from 'react';
 import { getPendingInbox, getDirectoriesTree, confirmOrganization } from '../api/inbox';
-import { Sparkles, Loader2, FolderPlus, FolderCheck, CheckCircle2, PartyPopper } from 'lucide-react';
+import { 
+  Sparkles, Loader2, FolderPlus, FolderCheck, 
+  CheckCircle2, PartyPopper, Brain, ArrowRight,
+  PlusCircle, Folder, ChevronRight
+} from 'lucide-react';
 
 export default function Novedades({ onOpenDetail }) {
   const [pendingItems, setPendingItems] = useState([]);
@@ -82,13 +86,16 @@ export default function Novedades({ onOpenDetail }) {
       </div>
     </div>
   );
-  if (error) return <div style={containerStyle}><p style={{ color: '#ff4444', padding: '20px', background: 'rgba(255,0,0,0.1)', borderRadius: '16px' }}>❌ {error}</p></div>;
+  if (error) return <div style={containerStyle}><div style={errorStyle}>❌ {error}</div></div>;
 
   return (
     <div style={containerStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-        <h2 style={{ margin: 0, color: 'var(--neon)' }}>✨ BANDEJA DE CLASIFICACIÓN</h2>
-        <div style={badgeStyle}>{pendingItems.length} pendientes</div>
+      <div style={headerSectionStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <Sparkles style={{ color: 'var(--neon)' }} size={28} />
+          <h2 style={{ margin: 0, color: 'var(--neon)', letterSpacing: '1px' }}>BANDEJA DE CLASIFICACIÓN</h2>
+        </div>
+        <div style={badgeStyle}>{pendingItems.length} PENDIENTES</div>
       </div>
 
       <p style={{ opacity: 0.7, marginBottom: '30px' }}>
@@ -97,9 +104,9 @@ export default function Novedades({ onOpenDetail }) {
 
       {pendingItems.length === 0 ? (
         <div style={emptyStyle}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>🎉</div>
-          <h3 style={{ margin: 0, color: 'var(--neon)' }}>¡Todo al día!</h3>
-          <p style={{ opacity: 0.7 }}>No hay elementos pendientes de validación humana.</p>
+          <PartyPopper size={48} style={{ color: 'var(--neon)', marginBottom: '15px', opacity: 0.8 }} />
+          <h3 style={{ margin: 0, color: 'var(--neon)', letterSpacing: '1px' }}>MEMORIA OPTIMIZADA</h3>
+          <p style={{ opacity: 0.6 }}>No hay elementos pendientes de validación.</p>
         </div>
       ) : (
         <div style={gridStyle}>
@@ -108,29 +115,25 @@ export default function Novedades({ onOpenDetail }) {
 
               {/* ZONA SUPERIOR: Info y Preview */}
               <div
-                style={{ ...itemHeaderStyle, cursor: 'pointer' }}
+                style={itemHeaderStyle} 
                 onClick={() => onOpenDetail(item.id)}
                 title="Haz clic para ver todos los detalles"
               >
                 <div style={{ flex: 1 }}>
-                  <div style={sourceStyle}>{item.item_type} • {item.source}</div>
-                  <h3 style={{ margin: '5px 0 10px 0', color: 'white', fontSize: '1.3rem' }}>
-                    {item.title || `Elemento #${item.id}`}
-                  </h3>
-
-                  {/* Pintamos content o URL como resumen */}
-                  {item.content && (
-                    <p style={contentStyle}>{item.content}</p>
-                  )}
+                  <div style={sourceTagStyle}>{item.item_type} • {item.source}</div>
+                  <h3 style={itemTitleStyle}>{item.title || `Entrada #${item.id}`}</h3>
+                  {item.content && <p style={contentPreviewStyle}>{item.content}</p>}
                 </div>
 
                 {/* Si hay imagen, la mostramos */}
                 {item.preview_base64 && (
-                  <img
-                    src={item.preview_base64.startsWith('data:') ? item.preview_base64 : `data:image/jpeg;base64,${item.preview_base64}`}
-                    alt="Preview"
-                    style={previewImageStyle}
-                  />
+                  <div style={imageWrapperStyle}>
+                    <img
+                      src={item.preview_base64.startsWith('data:') ? item.preview_base64 : `data:image/jpeg;base64,${item.preview_base64}`}
+                      alt="Preview"
+                      style={previewImageStyle}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -142,11 +145,14 @@ export default function Novedades({ onOpenDetail }) {
                   style={btnSuggestStyle}
                   onClick={() => handleConfirm(item.id, { type: 'RECOMMENDED' })}
                 >
-                  ✨ Aceptar sugerencia: <b>{getSuggestedName(item.directory_id)}</b>
+                  <Brain size={18} />
+                  <span style={{ flex: 1, textAlign: 'left' }}>Aceptar sugerencia: <b>{getSuggestedName(item.directory_id)}</b></span>
+                  <CheckCircle2 size={18} />
                 </button>
 
-                <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                  {/* 2. Seleccionar existente */}
+                <div style={bottomActionsRow}>
+                  <div style={selectWrapperStyle}>
+                    <Folder size={16} style={selectIconStyle} />
                   <select
                     style={selectStyle}
                     onChange={(e) => {
@@ -154,17 +160,19 @@ export default function Novedades({ onOpenDetail }) {
                     }}
                     defaultValue=""
                   >
-                    <option value="" disabled>📂 Mover a carpeta existente...</option>
+                    <option value="" disabled>Mover a carpeta...</option>
                     {directories.map(dir => (
                       <option key={dir.id} value={dir.id}>{dir.name || `Carpeta ${dir.id}`}</option>
                     ))}
                   </select>
+                  </div>
 
                   {/* 3. Crear Nueva */}
-                  <div style={{ display: 'flex', flex: 1, minWidth: '200px' }}>
+                  <div style={inputWrapperStyle}>
+                    <PlusCircle size={16} style={selectIconStyle} />
                     <input
                       type="text"
-                      placeholder="Crear nueva carpeta... (Enter)"
+                      placeholder="Nueva carpeta (Enter)..."
                       style={inputStyle}
                       value={newFolderName}
                       onChange={(e) => setNewFolderName(e.target.value)}
@@ -185,56 +193,108 @@ export default function Novedades({ onOpenDetail }) {
   );
 }
 
-// --- ESTILOS ---
-const containerStyle = { padding: '10px 0', color: 'var(--text)' };
-const loadingStyle = { padding: '40px', textAlign: 'center', opacity: 0.7, fontSize: '1.2rem', background: 'var(--card-bg)', borderRadius: '26px' };
-const emptyStyle = { padding: '60px 20px', textAlign: 'center', background: 'var(--card-bg)', borderRadius: '26px', border: '1px solid rgba(70, 211, 126, 0.2)' };
-const gridStyle = { display: 'flex', flexDirection: 'column', gap: '25px' };
+// --- ESTILOS ADAPTADOS ---
+const containerStyle = { padding: '10px 0' };
+const headerSectionStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' };
 
-const badgeStyle = { background: 'rgba(70, 211, 126, 0.2)', color: 'var(--neon)', padding: '5px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', border: '1px solid rgba(70, 211, 126, 0.4)' };
+const loadingStyle = { 
+  padding: '60px', textAlign: 'center', opacity: 0.9, color: 'var(--text)',
+  background: 'var(--card-bg)', borderRadius: '30px', border: '1px solid rgba(70,211,126,0.1)' 
+};
+
+const emptyStyle = { 
+  padding: '60px 20px', textAlign: 'center', background: 'var(--card-bg)', 
+  borderRadius: '30px', border: '2px dashed rgba(70, 211, 126, 0.15)',
+  display: 'flex', flexDirection: 'column', alignItems: 'center'
+};
+
+const badgeStyle = { 
+  background: 'rgba(70, 211, 126, 0.1)', color: 'var(--neon)', 
+  padding: '6px 16px', borderRadius: '12px', fontSize: '0.75rem', 
+  fontWeight: '800', border: '1px solid rgba(70, 211, 126, 0.3)',
+  letterSpacing: '1px'
+};
+
+const gridStyle = { display: 'flex', flexDirection: 'column', gap: '30px' };
 
 const cardNovedadStyle = {
-  background: 'var(--card-bg)',
-  border: '2px solid rgba(70, 211, 126, 0.3)',
+  background: 'rgba(20, 25, 22, 0.6)',
+  border: '1px solid rgba(70, 211, 126, 0.2)',
   padding: '25px',
-  borderRadius: '26px',
-  boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
-  transition: 'transform 0.2s ease',
+  borderRadius: '30px',
+  boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
+  transition: 'all 0.3s ease',
+  position: 'relative',
+  overflow: 'hidden'
 };
 
-const itemHeaderStyle = { display: 'flex', gap: '20px', marginBottom: '20px', alignItems: 'flex-start' };
-const sourceStyle = { color: 'var(--neon)', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', opacity: 0.8 };
-const contentStyle = { opacity: 0.7, fontSize: '0.95rem', lineHeight: '1.5', margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' };
-
-const previewImageStyle = {
-  width: '140px',
-  height: '100px',
-  objectFit: 'cover',
-  borderRadius: '12px',
-  border: '1px solid rgba(255,255,255,0.1)',
-  flexShrink: 0
+const itemHeaderStyle = { 
+  display: 'flex', gap: '25px', marginBottom: '25px', 
+  alignItems: 'flex-start', cursor: 'pointer' 
 };
+
+const sourceTagStyle = { 
+  color: 'var(--neon)', fontSize: '0.65rem', fontWeight: '900', 
+  textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.7, marginBottom: '8px'
+};
+
+const itemTitleStyle = { 
+  margin: '0 0 12px 0', color: 'white', fontSize: '1.4rem', 
+  fontWeight: '800', lineHeight: '1.2' 
+};
+
+const contentPreviewStyle = { 
+  color: 'rgba(215, 239, 224, 0.7)', fontSize: '0.95rem', 
+  lineHeight: '1.6', margin: 0, display: '-webkit-box', 
+  WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' 
+};
+
+const imageWrapperStyle = {
+  width: '160px', height: '110px', borderRadius: '16px',
+  overflow: 'hidden', border: '1px solid rgba(70, 211, 126, 0.2)', flexShrink: 0
+};
+
+const previewImageStyle = { width: '100%', height: '100%', objectFit: 'cover' };
 
 const actionSectionStyle = {
-  borderTop: '1px dashed rgba(70, 211, 126, 0.3)',
-  paddingTop: '20px',
+  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+  paddingTop: '25px',
   display: 'flex',
   flexDirection: 'column',
-  gap: '10px'
+  gap: '12px'
 };
 
 const btnSuggestStyle = {
-  width: '100%', background: 'rgba(70, 211, 126, 0.15)', color: 'var(--neon)',
-  border: '1px solid var(--neon)', padding: '14px', borderRadius: '12px',
-  cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', transition: 'all 0.2s'
+  width: '100%', background: 'rgba(70, 211, 126, 0.08)', color: 'var(--neon)',
+  border: '1px solid rgba(70, 211, 126, 0.4)', padding: '16px', borderRadius: '16px',
+  cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem', transition: 'all 0.2s',
+  display: 'flex', alignItems: 'center', gap: '15px'
+};
+
+const bottomActionsRow = { display: 'flex', gap: '12px', flexWrap: 'wrap' };
+
+const selectWrapperStyle = { position: 'relative', flex: 1, minWidth: '220px' };
+const inputWrapperStyle = { position: 'relative', flex: 1, minWidth: '220px' };
+
+const selectIconStyle = { 
+  position: 'absolute', left: '15px', top: '50%', 
+  transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' 
 };
 
 const selectStyle = {
-  flex: 1, padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)',
-  color: 'white', border: '1px solid rgba(255,255,255,0.1)', outline: 'none', cursor: 'pointer'
+  width: '100%', padding: '14px 14px 14px 45px', borderRadius: '14px', 
+  background: 'rgba(0,0,0,0.3)', color: 'white', 
+  border: '1px solid rgba(255,255,255,0.1)', outline: 'none', cursor: 'pointer',
+  appearance: 'none', fontSize: '0.9rem'
 };
 
 const inputStyle = {
-  width: '100%', padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.4)',
-  color: 'white', border: '1px solid rgba(255,255,255,0.1)', outline: 'none'
+  width: '100%', padding: '14px 14px 14px 45px', borderRadius: '14px', 
+  background: 'rgba(0,0,0,0.3)', color: 'white', 
+  border: '1px solid rgba(255,255,255,0.1)', outline: 'none', fontSize: '0.9rem'
+};
+
+const errorStyle = { 
+  color: '#ff9393', padding: '20px', background: 'rgba(255,90,90,0.1)', 
+  borderRadius: '16px', border: '1px solid rgba(255,90,90,0.2)' 
 };
