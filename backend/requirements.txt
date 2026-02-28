@@ -3,4 +3,7 @@ uvicorn[standard]==0.34.0
 sqlmodel==0.0.22
 pydantic-settings==2.8.1
 alembic==1.14.1
-summa==1.2.0
+requests==2.32.3
+beautifulsoup4==4.12.3
+Pillow==11.1.0
+PyMuPDF==1.25.3
