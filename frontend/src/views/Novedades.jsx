@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getPendingInbox, getDirectoriesTree, confirmOrganization } from '../api/inbox';
 
-export default function Novedades() {
+export default function Novedades({ onOpenDetail }) {
   const [pendingItems, setPendingItems] = useState([]);
   const [directories, setDirectories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,18 +89,24 @@ export default function Novedades() {
             <div key={item.id} style={cardNovedadStyle}>
 
               {/* ZONA SUPERIOR: Info y Preview */}
-              <div style={itemHeaderStyle}>
+              <div
+                style={{ ...itemHeaderStyle, cursor: 'pointer' }}
+                onClick={() => onOpenDetail(item.id)}
+                title="Haz clic para ver todos los detalles"
+              >
                 <div style={{ flex: 1 }}>
                   <div style={sourceStyle}>{item.item_type} • {item.source}</div>
                   <h3 style={{ margin: '5px 0 10px 0', color: 'white', fontSize: '1.3rem' }}>
                     {item.title || `Elemento #${item.id}`}
                   </h3>
+
+                  {/* Pintamos content o URL como resumen */}
                   {item.content && (
                     <p style={contentStyle}>{item.content}</p>
                   )}
                 </div>
 
-                {/* Si hay imagen (como en el JSON de YouTube que me pasaste), la mostramos */}
+                {/* Si hay imagen, la mostramos */}
                 {item.preview_base64 && (
                   <img
                     src={item.preview_base64.startsWith('data:') ? item.preview_base64 : `data:image/jpeg;base64,${item.preview_base64}`}

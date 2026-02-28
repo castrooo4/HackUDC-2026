@@ -16,7 +16,11 @@ import InboxCard from "./Inboxcard";
 
 export default function CardGrid({ items, setItems, onOpen }) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Exige mover el ratón 5 píxeles para iniciar el arrastre. ¡Esto libera el clic!
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -28,7 +32,7 @@ export default function CardGrid({ items, setItems, onOpen }) {
     if (active.id !== over.id) {
       const oldIndex = items.findIndex((item) => item.id === active.id);
       const newIndex = items.findIndex((item) => item.id === over.id);
-      
+
       // Actualizamos el estado en App.jsx con el nuevo orden
       setItems(arrayMove(items, oldIndex, newIndex));
     }

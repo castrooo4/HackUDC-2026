@@ -130,9 +130,9 @@ export default function App() {
               } />
 
               {/* Esta es la nueva pestaña */}
-              <Route path="/novedades" element={<Novedades />} />
-
+              <Route path="/novedades" element={<Novedades onOpenDetail={openDetail} />} />
               <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} />} />
+
             </Routes>
           </div>
         </div>
@@ -140,7 +140,24 @@ export default function App() {
         {/* El botón flotante y modales se mantienen globales */}
         <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
         <CreateItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
-        {/* ... resto de modales */}
+        {/* El botón flotante y modales se mantienen globales */}
+        <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
+
+        <CreateItemModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={handleCreate}
+        />
+
+        {/* 👇 AQUI ESTÁ EL MODAL QUE FALTABA 👇 */}
+        <InboxDetailModal
+          open={detailOpen}
+          item={detailItem}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => setDetailOpen(false)}
+        />
+
       </div>
     </Router>
   );
