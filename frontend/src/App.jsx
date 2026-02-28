@@ -7,6 +7,9 @@ import InboxDetailModal from "./components/InboxDetailModal";
 import CreateItemModal from "./components/CreateItemModal";
 import ThemeSlider from "./components/ThemeSlider";
 import LoginForm from "./components/LoginForm.jsx";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import Novedades from "./views/Novedades";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
@@ -105,45 +108,38 @@ export default function App() {
 
   // RENDER: App Principal
   return (
-    <div className={`app ${isLight ? "light-mode" : ""}`}>
-      <div className="bg" />
-      <div className="container">
-        <TopBar 
-          healthOk={healthOk} 
-          total={items.length} 
-          onLogout={handleLogout} // Nueva prop para cerrar sesión
-          rightContent={
-            <ThemeSlider isLight={isLight} onToggle={() => setIsLight(!isLight)} />
-          }
-        />
-
-        {listError ? <div className="error">{listError}</div> : null}
+    <Router>
+      <div className={`app ${isLight ? "light-mode" : ""}`} style={{ display: "flex" }}>
+        <Sidebar />
         
-        {loadingList ? (
-          <div className="loading">Sincronizando cerebro digital...</div>
-        ) : (
-          <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
-        )}
+        {/* Añadimos un margen izquierdo para que el contenido no quede debajo del Sidebar */}
+        <div className="main-content" style={{ flex: 1, marginLeft: "240px" }}>
+          <div className="bg" />
+          <div className="container">
+            <TopBar healthOk={healthOk} total={items.length} onLogout={handleLogout} />
+
+            <Routes>
+              {/* Esta es tu pantalla principal actual */}
+              <Route path="/" element={
+                loadingList ? (
+                  <div className="loading">Sincronizando cerebro digital...</div>
+                ) : (
+                  <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
+                )
+              } />
+
+              {/* Esta es la nueva pestaña */}
+              <Route path="/novedades" element={<Novedades />} />
+            </Routes>
+          </div>
+        </div>
+
+        {/* El botón flotante y modales se mantienen globales */}
+        <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
+        <CreateItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
+        {/* ... resto de modales */}
       </div>
-
-      {/* Botón Flotante para nueva nota */}
-      <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
-
-      {/* Modales */}
-      <CreateItemModal 
-        open={createOpen} 
-        onClose={() => setCreateOpen(false)} 
-        onCreate={handleCreate} 
-      />
-
-      <InboxDetailModal
-        open={detailOpen}
-        item={detailItem}
-        loading={detailLoading}
-        error={detailError}
-        onClose={() => setDetailOpen(false)}
-      />
-    </div>
+    </Router>
   );
 }
 
