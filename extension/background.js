@@ -7,6 +7,7 @@ const ACTIONS = {
   INIT_SCREENSHOT: "INIT_SCREENSHOT",
   START_CROP_UI: "START_CROP_UI",
   SHOW_TOAST: "SHOW_TOAST",
+  GET_YOUTUBE_RECOMMENDATIONS: "GET_YOUTUBE_RECOMMENDATIONS",
 };
 
 const TOAST_TYPE = {
@@ -190,6 +191,41 @@ async function handleInitScreenshot() {
   });
 }
 
+async function getYoutubeRecommendations(payload) {
+  const { access_token: token } = await getStorage(["access_token"]);
+  if (!token) {
+    return { status: "unauthorized", recommendations: [] };
+  }
+
+  const params = new URLSearchParams();
+  if (payload?.currentUrl) params.set("current_url", payload.currentUrl);
+  if (payload?.currentTitle) params.set("current_title", payload.currentTitle);
+  if (payload?.currentChannel) params.set("current_channel", payload.currentChannel);
+  params.set("limit", String(Math.min(20, Math.max(1, Number(payload?.limit || 20)))));
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/inbox/recommendations/youtube?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.status === 401) {
+      await removeStorage(["access_token"]);
+      return { status: "unauthorized", recommendations: [] };
+    }
+    if (!response.ok) {
+      return { status: "error", recommendations: [] };
+    }
+
+    const data = await response.json();
+    return { status: "ok", recommendations: Array.isArray(data) ? data : [] };
+  } catch (_error) {
+    return { status: "error", recommendations: [] };
+  }
+}
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   (async () => {
     if (request.action === ACTIONS.SAVE_MANUAL) {
@@ -208,6 +244,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (request.action === ACTIONS.INIT_SCREENSHOT) {
       await handleInitScreenshot();
       sendResponse({ status: "ok" });
+      return;
+    }
+
+    if (request.action === ACTIONS.GET_YOUTUBE_RECOMMENDATIONS) {
+      const result = await getYoutubeRecommendations(request.payload);
+      sendResponse(result);
       return;
     }
 

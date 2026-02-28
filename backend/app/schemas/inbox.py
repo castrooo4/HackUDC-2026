@@ -198,6 +198,11 @@ class InboxCityRead(BaseModel):
     item_count: int
 
 
+class YouTubeRecommendationRead(BaseModel):
+    item: InboxRead
+    score: float = Field(description="Puntuacion de relevancia para ordenar recomendaciones")
+
+
 class InboxUpdate(BaseModel):
     source: Optional[str] = None
     item_type: Optional[InboxItemType] = None

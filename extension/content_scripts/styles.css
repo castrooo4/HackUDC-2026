@@ -3,13 +3,18 @@
   position: relative !important;
 }
 
+.remit-thumb-anchor {
+  position: relative !important;
+  display: block !important;
+}
+
 /* 2. Estilo base del botón (Pensado por defecto para YouTube) */
 .remit-save-btn {
   position: absolute !important;
-  top: 90px !important;
+  top: 8px !important;
   /* Bajito para no tapar los subtítulos de YT */
   right: 8px !important;
-  z-index: 9999 !important;
+  z-index: 30 !important;
 
   /* Diseño oscuro tipo YouTube */
   background-color: rgba(0, 0, 0, 0.8) !important;
