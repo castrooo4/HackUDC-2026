@@ -1,36 +1,34 @@
 // --- 1. FUNCIÓN CENTRAL PARA ENVIAR AL BACKEND ---
-function sendToRemitBackend(payload) {
-  console.log("Remit: Preparando envío al backend ->", payload);
+async function sendToRemitBackend(payload) {
+  // 1. Recuperamos el token de storage
+  const data = await chrome.storage.local.get(['access_token']);
+  const token = data.access_token;
+
+  if (!token) {
+    console.error("Remit: No hay token. Usuario no logueado.");
+    // Opcional: Avisar al usuario que debe loguearse
+    return;
+  }
 
   fetch("http://127.0.0.1:8000/inbox", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}` // <--- TOKEN AÑADIDO
     },
     body: JSON.stringify(payload)
   })
     .then(response => {
-      if (!response.ok) {
-        throw new Error("El backend devolvió un error: " + response.status);
+      if (response.ok) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: "SHOW_TOAST", message: "¡Guardado en Remit!" });
+        });
+      } else if (response.status === 401) {
+        console.error("Remit: Token expirado o inválido.");
+        chrome.storage.local.remove(['access_token']);
       }
-      return response.json();
     })
-    .then(data => {
-      console.log(`Remit: ¡Éxito! Guardado en el backend.`, data);
-
-      // Mandamos la orden de mostrar el Toast a la pestaña activa
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        if (tabs[0]) {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            action: "SHOW_TOAST",
-            message: "¡Guardado en Remit!"
-          });
-        }
-      });
-    })
-    .catch(error => {
-      console.error("Remit: Fallo al contactar con el backend.", error);
-    });
+    .catch(err => console.error("Error Remit:", err));
 }
 
 // --- 2. FUNCIÓN MÁGICA PARA CONVERTIR A BASE64 ---

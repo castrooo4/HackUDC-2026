@@ -1,96 +1,80 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 
 <head>
   <meta charset="UTF-8">
-  <title>Remit</title>
+  <link rel="stylesheet" href="style.css">
   <style>
     body {
-      width: 320px;
+      width: 300px;
       padding: 15px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: sans-serif;
       background: #1a1a1a;
-      color: #e8eaed;
-      margin: 0;
+      color: white;
     }
 
-    h2 {
-      margin-top: 0;
-      font-size: 18px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-bottom: 1px solid #333;
-      padding-bottom: 10px;
+    .hidden {
+      display: none;
     }
 
-    label {
-      display: block;
-      margin: 10px 0 5px;
-      font-size: 13px;
-      color: #aaa;
-    }
-
-    select,
-    textarea {
+    input {
       width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #333;
+      background: #222;
+      color: white;
       box-sizing: border-box;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #444;
-      background: #2a2a2a;
-      color: white;
-      font-family: inherit;
     }
 
-    textarea {
-      resize: vertical;
-      /* Permite hacerlo más grande si la nota es larga */
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 15px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 6px;
+    .auth-switch {
+      font-size: 12px;
+      color: #4CAF50;
       cursor: pointer;
-      font-size: 15px;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      background: #45a049;
-    }
-
-    #status {
-      margin-top: 10px;
-      font-size: 13px;
       text-align: center;
-      font-weight: bold;
+      display: block;
+      margin-top: 10px;
     }
   </style>
 </head>
 
 <body>
-  <h2>🧠 Cerebro Remit</h2>
+  <h2 style="display: flex; align-items: center; gap: 8px;">🧠 Cerebro Remit</h2>
 
-  <label for="content">Que quieres guardar:</label>
-  <textarea id="content" rows="4" placeholder="Escribe tu nota o pega aquí una URL..."></textarea>
+  <div id="authView">
+    <div id="loginForm">
+      <h3>Iniciar Sesión</h3>
+      <input type="email" id="loginEmail" placeholder="Email">
+      <input type="password" id="loginPass" placeholder="Contraseña">
+      <button id="loginBtn" style="background: #4CAF50;">Entrar</button>
+      <span class="auth-switch" id="toRegister">¿No tienes cuenta? Regístrate</span>
+    </div>
 
-  <button id="saveBtn">Enviar a Inbox</button>
-  <div id="status"></div>
+    <div id="registerForm" class="hidden">
+      <h3>Crear Cuenta</h3>
+      <input type="text" id="regName" placeholder="Nombre completo">
+      <input type="email" id="regEmail" placeholder="Email">
+      <input type="password" id="regPass" placeholder="Contraseña">
+      <button id="registerBtn" style="background: #2196F3;">Registrarse</button>
+      <span class="auth-switch" id="toLogin">Ya tengo cuenta</span>
+    </div>
+  </div>
 
-  <button id="autoSaveBtn" style="background-color: #FF9800; margin-top: 8px;">
-    🚀 Guardar esta pestaña
-  </button>
+  <div id="mainView" class="hidden">
+    <textarea id="content" placeholder="Escribe tu nota o pega aquí una URL..." rows="3"
+      style="width:100%; background:#222; color:white; border:1px solid #333; border-radius:4px; margin-bottom:10px;"></textarea>
+    <button id="saveBtn" style="background: #4CAF50; width: 100%; padding: 10px; margin-bottom: 8px;">Enviar a
+      Inbox</button>
+    <button id="autoSaveBtn" style="background: #FF9800; width: 100%; padding: 10px; margin-bottom: 8px;">🚀 Guardar
+      esta pestaña</button>
+    <button id="screenshotBtn" style="background: #9C27B0; width: 100%; padding: 10px;">📸 Recortar y Guardar</button>
+    <button id="logoutBtn"
+      style="background: transparent; border: 1px solid #ff4444; color: #ff4444; width: 100%; margin-top: 15px; font-size: 11px;">Cerrar
+      Sesión</button>
+  </div>
 
-  <button id="screenshotBtn" style="background-color: #9C27B0; margin-top: 8px;">
-    📸 Recortar y Guardar
-  </button>
+  <p id="status" style="text-align:center; font-size:12px; margin-top:10px;"></p>
 
   <script src="popup.js"></script>
 </body>
