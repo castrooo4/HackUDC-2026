@@ -12,42 +12,60 @@ export default function NewInboxItemForm({ onCreate }) {
     if (!content.trim()) return;
     setLoading(true);
 
-    const payload = {
-      title: title.trim() || undefined,
-      source: source.trim() || "extension",
-      item_type: itemType
-      /*
-      item_type: item_type,
-      [item_type === "TEXT" ? "content" : "url"]: content.trim()
-      */
-    };
+    const rawContent = content.trim();
+  let detectedType = "TEXT"; // Por defecto
 
-    // Mapeo de campos según el readme del backend 
-    if (itemType === "TEXT") {
-      payload.content = content.trim();
-    } else if (itemType === "IMAGE" || itemType === "PDF") {
-      // Si el contenido empieza por data: es un base64, si no es una URL 
-      if (content.startsWith("data:")) {
-        payload.file_base64 = content.trim();
-      } else {
-        payload.url = content.trim();
-      }
+  // Lógica de autodetección basada en patrones
+  if (rawContent.startsWith("data:image/")) {
+    detectedType = "IMAGE";
+  } else if (rawContent.startsWith("data:application/pdf")) {
+    detectedType = "PDF";
+  } else if (rawContent.startsWith("http")) {
+    const url = rawContent.toLowerCase();
+    if (url.includes("youtube.com/") || url.includes("youtu.be/")) {
+      detectedType = "YOUTUBE";
+    } else if (url.match(/\.(jpeg|jpg|gif|png|webp)$/)) {
+      detectedType = "IMAGE";
+    } else if (url.endsWith(".pdf")) {
+      detectedType = "PDF";
     } else {
-      // Para YOUTUBE y WEB se usa URL 
-      payload.url = content.trim();
+      detectedType = "WEB";
     }
+  }
+
+  // Actualizamos el estado para que el usuario vea el cambio en el selector
+  setItemType(detectedType);
+
+  const payload = {
+    title: title.trim() || undefined,
+    source: source.trim() || "extension",
+    item_type: detectedType // Usamos el tipo detectado
+  };
+
+  // Asignación de campos según el tipo detectado y el README del backend
+  if (detectedType === "TEXT") {
+    payload.content = rawContent;
+  } else if (detectedType === "IMAGE" || detectedType === "PDF") {
+    if (rawContent.startsWith("data:")) {
+      payload.file_base64 = rawContent;
+    } else {
+      payload.url = rawContent;
+    }
+  } else {
+    payload.url = rawContent;
+  }
 
   try {
     await onCreate(payload);
     setTitle("");
     setContent("");
+    setItemType("TEXT"); // Reset al valor por defecto
   } catch (err) {
     console.error("Error creando item:", err);
-    alert("Hubo un error al crear el item. Por favor intenta de nuevo.");
   } finally {
     setLoading(false);
   }
-  }
+}
 
   return (
     <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -58,17 +76,7 @@ export default function NewInboxItemForm({ onCreate }) {
           placeholder="Título (opcional)" 
           style={{ ...inputStyle, flex: 1 }} 
         />
-        <select 
-          value={itemType} 
-          onChange={(e) => setItemType(e.target.value)} 
-          style={selectStyle}
-        >
-          <option value="TEXT">Texto</option>
-          <option value="YOUTUBE">YouTube</option>
-          <option value="IMAGE">Imagen</option>
-          <option value="PDF">PDF</option>
-          <option value="WEB">Web</option>
-        </select>
+        
       </div>
 
       <input 
