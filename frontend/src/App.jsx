@@ -5,6 +5,7 @@ import NewInboxItemForm from "./components/NewInboxItemForm.jsx";
 import CardGrid from "./components/CardGrid";
 import InboxDetailModal from "./components/InboxDetailModal";
 import CreateItemModal from "./components/CreateItemModal";
+import ThemeSlider from "./components/ThemeSlider";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
@@ -27,6 +28,7 @@ export default function App() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [isLight, setIsLight] = useState(false);
 
   async function refreshHealth() {
     try {
@@ -91,10 +93,16 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${isLight ? "light-mode" : ""}`}>
       <div className="bg" />
       <div className="container">
-        <TopBar healthOk={healthOk} total={items.length} />
+        <TopBar 
+          healthOk={healthOk} 
+          total={items.length} 
+          rightContent={
+            <ThemeSlider isLight={isLight} onToggle={() => setIsLight(!isLight)} />
+          }
+        />
         {/* El formulario ya no está aquí  */}
 
         {listError ? <div className="error">{listError}</div> : null}
