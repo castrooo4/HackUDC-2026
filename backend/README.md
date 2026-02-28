@@ -16,6 +16,16 @@ uvicorn app.main:app --reload
 
 Base URL: `http://127.0.0.1:8000`
 
+## Docker (backend only)
+```bash
+cd backend
+docker build -t remit-backend:local .
+docker run --rm -p 8000:8000 \
+  -v remit_sqlite_data:/data \
+  -e DATABASE_URL=sqlite:////data/kelea.db \
+  remit-backend:local
+```
+
 ## Estructura (resumen)
 - `app/routers`: endpoints (`inbox`, `health`)
 - `app/service`: logica de negocio (ingesta por tipo)
@@ -24,6 +34,28 @@ Base URL: `http://127.0.0.1:8000`
 - `app/models`: SQLModel
 - `app/schemas`: request/response
 - `app/utils`: utilidades de preview/base64/imagenes
+
+## Curl
+```bash
+# 1) Crear item
+curl -X POST "http://127.0.0.1:8000/inbox" \
+  -H "Content-Type: application/json" \
+  -d "{\"source\":\"extension\",\"item_type\":\"TEXT\",\"content\":\"Nota rápida de prueba\"}"
+
+# 2) Listar
+curl "http://127.0.0.1:8000/inbox"
+
+# 3) Obtener por id
+curl "http://127.0.0.1:8000/inbox/1"
+
+# 4) Actualizar (PATCH)
+curl -X PATCH "http://127.0.0.1:8000/inbox/1" \
+  -H "Content-Type: application/json" \
+  -d "{\"title\":\"Nuevo título\"}"
+
+# 5) Eliminar
+curl -X DELETE "http://127.0.0.1:8000/inbox/1"
+```
 
 ## Endpoints
 - `POST /auth/register`
