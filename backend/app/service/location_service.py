@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
 import requests
 
 from app.config import settings
+
+logger = logging.getLogger("app.location")
 
 
 class LocationService:
@@ -26,6 +29,12 @@ class LocationService:
         return city
 
     def _fetch_city(self, lat: float, lon: float) -> Optional[str]:
+        city = self._fetch_city_nominatim(lat, lon)
+        if city:
+            return city
+        return self._fetch_city_bigdatacloud(lat, lon)
+
+    def _fetch_city_nominatim(self, lat: float, lon: float) -> Optional[str]:
         params = {
             "format": "jsonv2",
             "lat": lat,
@@ -46,21 +55,48 @@ class LocationService:
             )
             response.raise_for_status()
             data = response.json()
-        except Exception:
+            address = data.get("address", {})
+            return self._clean_city(
+                address.get("city")
+                or address.get("town")
+                or address.get("village")
+                or address.get("municipality")
+                or address.get("county")
+                or address.get("state_district")
+                or address.get("state")
+            )
+        except Exception as exc:
+            logger.debug("Nominatim reverse geocoding failed: %s", exc)
             return None
 
-        address = data.get("address", {})
-        raw_city = (
-            address.get("city")
-            or address.get("town")
-            or address.get("village")
-            or address.get("municipality")
-            or address.get("county")
-            or address.get("state_district")
-            or address.get("state")
-        )
+    def _fetch_city_bigdatacloud(self, lat: float, lon: float) -> Optional[str]:
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "localityLanguage": "es",
+        }
+        headers = {"User-Agent": settings.GEOCODER_USER_AGENT}
+        try:
+            response = requests.get(
+                settings.GEOCODER_FALLBACK_BASE_URL,
+                params=params,
+                headers=headers,
+                timeout=settings.GEOCODER_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return self._clean_city(
+                data.get("city")
+                or data.get("locality")
+                or data.get("principalSubdivision")
+                or data.get("localityInfo", {}).get("administrative", [{}])[0].get("name")
+            )
+        except Exception as exc:
+            logger.debug("BigDataCloud reverse geocoding failed: %s", exc)
+            return None
+
+    def _clean_city(self, raw_city: object) -> Optional[str]:
         if not raw_city:
             return None
-
         cleaned = " ".join(str(raw_city).split()).strip()
         return cleaned[:120] if cleaned else None

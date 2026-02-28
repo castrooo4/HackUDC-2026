@@ -10,13 +10,14 @@ from app.models.inbox_item import InboxItem, InboxItemType
 from app.models.user import User
 from app.service.auth_service import AuthService
 from app.service.directory_service import DirectoryService
+from app.service.location_service import LocationService
 
 DEMO_EMAIL = "test@gmail.com"
 DEMO_PASSWORD = "test1234"
 DEMO_FULL_NAME = "test"
-CITY_A_CORUNA = "A Coruna"
+CITY_A_CORUNA = "Ciudad de La Coruna"
 CITY_SANTIAGO = "Santiago de Compostela"
-CITY_MADRID = "Madrid"
+CITY_MADRID = "Ciudad de Madrid"
 
 
 def _make_image_data_url(
@@ -55,6 +56,10 @@ def _geo(city: str, lat: float, lon: float) -> dict[str, str | float]:
 def seed():
     auth_service = AuthService()
     directory_service = DirectoryService()
+    location_service = LocationService()
+
+    def city_for(lat: float, lon: float, fallback: str) -> str:
+        return location_service.resolve_city(lat, lon) or fallback
 
     with Session(engine) as session:
         session.exec(delete(InboxItem))
@@ -109,7 +114,7 @@ def seed():
                     "Documentacion tecnica de arquitectura de backend, capas de servicio, "
                     "routers y patrones para mantenibilidad."
                 ),
-                **_geo(CITY_A_CORUNA, 43.3623, -8.4115),
+                **_geo(city_for(43.3623, -8.4115, CITY_A_CORUNA), 43.3623, -8.4115),
                 metadata_json={"preview_kind": "text", "tags_hint": ["backend", "arquitectura", "docs"]},
             ),
             InboxItem(
@@ -119,7 +124,7 @@ def seed():
                 title="FastAPI Crash Course",
                 content="Guia practica para construir APIs limpias con FastAPI.",
                 url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                **_geo(CITY_A_CORUNA, 43.3630, -8.4100),
+                **_geo(city_for(43.3630, -8.4100, CITY_A_CORUNA), 43.3630, -8.4100),
                 preview_base64=youtube_preview,
                 mime_type="video/youtube",
                 metadata_json={
@@ -140,9 +145,9 @@ def seed():
                 source="seed",
                 item_type=InboxItemType.IMAGE,
                 title="Wireframe Home",
-                content="Diseño preliminar del dashboard principal.",
+                content="Diseno preliminar del dashboard principal.",
                 url="https://upload.wikimedia.org/wikipedia/commons/3/3f/Fronalpstock_big.jpg",
-                **_geo(CITY_A_CORUNA, 43.3650, -8.4060),
+                **_geo(city_for(43.3650, -8.4060, CITY_A_CORUNA), 43.3650, -8.4060),
                 preview_base64=image_preview,
                 mime_type="image/jpeg",
                 metadata_json={
@@ -159,9 +164,9 @@ def seed():
                 source="seed",
                 item_type=InboxItemType.PDF,
                 title="API Design Notes",
-                content="Notas de decisiones de diseño de API y convenciones.",
+                content="Notas de decisiones de diseno de API y convenciones.",
                 url="https://arxiv.org/pdf/1706.03762.pdf",
-                **_geo(CITY_MADRID, 40.4168, -3.7038),
+                **_geo(city_for(40.4168, -3.7038, CITY_MADRID), 40.4168, -3.7038),
                 preview_base64=pdf_preview,
                 mime_type="application/pdf",
                 metadata_json={
@@ -178,7 +183,7 @@ def seed():
                 title="Python Docs",
                 content="Referencia oficial de Python para librerias y guias.",
                 url="https://www.python.org",
-                **_geo(CITY_SANTIAGO, 42.8782, -8.5448),
+                **_geo(city_for(42.8782, -8.5448, CITY_SANTIAGO), 42.8782, -8.5448),
                 favicon_base64=favicon_preview,
                 mime_type="text/html",
                 metadata_json={
@@ -196,7 +201,7 @@ def seed():
                 item_type=InboxItemType.TEXT,
                 title="Ideas producto comunidad",
                 content="Notas de producto para organizar eventos y medir engagement por ciudad.",
-                **_geo(CITY_MADRID, 40.4210, -3.7000),
+                **_geo(city_for(40.4210, -3.7000, CITY_MADRID), 40.4210, -3.7000),
                 metadata_json={"preview_kind": "text", "tags_hint": ["producto", "comunidad"]},
             ),
         ]
@@ -209,7 +214,6 @@ def seed():
             directory_service.suggest_directory_for_item(session, user.id, item)
             created_ids.append(item.id)
 
-        # Confirmamos algunos para mostrar ambos estados en frontend.
         text_item = session.get(InboxItem, created_ids[0])
         yt_item = session.get(InboxItem, created_ids[1])
         pdf_item = session.get(InboxItem, created_ids[3])
@@ -221,9 +225,7 @@ def seed():
             dir_map = _root_dir_map(session, user.id)
             document_dir = dir_map.get("Documentos")
             if document_dir:
-                directory_service.confirm_item_directory(
-                    session, user.id, pdf_item, directory_id=document_dir.id
-                )
+                directory_service.confirm_item_directory(session, user.id, pdf_item, directory_id=document_dir.id)
 
         all_items = session.exec(select(InboxItem).where(InboxItem.user_id == user.id)).all()
         processed = len([item for item in all_items if item.status.value == "PROCESSED"])
@@ -242,4 +244,3 @@ def seed():
 
 if __name__ == "__main__":
     seed()
-

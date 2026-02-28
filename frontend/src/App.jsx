@@ -1,46 +1,40 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import { health, listInbox, createInboxItem, getInboxItem } from "./api/inbox";
-import { logout } from "./api/auth"; // Importamos la función de limpieza
+import { logout } from "./api/auth";
 import TopBar from "./components/TopBar.jsx";
 import CardGrid from "./components/CardGrid";
 import InboxDetailModal from "./components/InboxDetailModal";
 import CreateItemModal from "./components/CreateItemModal";
-import ThemeSlider from "./components/ThemeSlider";
 import LoginForm from "./components/LoginForm.jsx";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Novedades from "./views/Novedades";
 import CarpetaView from "./views/CarpetaView";
-import TelegramLinkModal from "./components/TelegramLinkModal";
+import MapaView from "./views/MapaView";
+import CiudadesView from "./views/CiudadesView";
 
 export default function App() {
   const [healthOk, setHealthOk] = useState(false);
   const [items, setItems] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [listError, setListError] = useState("");
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [telegramOpen, setTelegramOpen] = useState(false);
-  const [isLight, setIsLight] = useState(false);
 
-  // Estado de autenticación
   const [token, setToken] = useState(localStorage.getItem("token"));
 
-  // 1. Efecto para cargar datos solo cuando hay token
   useEffect(() => {
-    if (token) {
-      refreshHealth();
-      refreshList();
-    }
+    if (!token) return;
 
+    refreshHealth();
+    refreshList();
 
     const handleSync = (event) => {
-      if (event.data?.type === "REMIT_NEW_ITEM" && token) {
-        console.log("Magia: Recargando Inbox principal en segundo plano...");
+      if (event.data?.type === "REMIT_NEW_ITEM") {
         refreshList();
       }
     };
@@ -49,7 +43,6 @@ export default function App() {
     return () => window.removeEventListener("message", handleSync);
   }, [token]);
 
-  // Funciones de API
   async function refreshHealth() {
     try {
       const res = await health();
@@ -61,37 +54,32 @@ export default function App() {
 
   async function refreshList() {
     setLoadingList(true);
-    setListError("");
     try {
       const data = await listInbox();
       setItems(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setListError(e?.message ?? "Error cargando inbox");
     } finally {
       setLoadingList(false);
     }
   }
 
-  // Lógica de sesión
   const handleLoginSuccess = () => {
     setToken(localStorage.getItem("token"));
   };
 
   const handleLogout = () => {
-    logout(); // Borra localStorage
-    setToken(null); // Vuelve al estado de Login
-    setItems([]); // Limpia datos de la vista por seguridad
+    logout();
+    setToken(null);
+    setItems([]);
   };
 
   async function handleCreate(payload) {
     try {
       const newItem = await createInboxItem(payload);
-      setItems(prev => [newItem, ...prev]);
-    } catch (e) {
-      console.error("Error al crear:", e);
-      // Opcional: Mock en caso de error de red para pruebas visuales
+      setItems((prev) => [newItem, ...prev]);
+    } catch (error) {
+      console.error("Error al crear:", error);
       const mockItem = { id: Date.now(), ...payload, status: "PENDING", created_at: new Date().toISOString() };
-      setItems(prev => [mockItem, ...prev]);
+      setItems((prev) => [mockItem, ...prev]);
     }
   }
 
@@ -103,67 +91,51 @@ export default function App() {
     try {
       const data = await getInboxItem(id);
       setDetailItem(data);
-    } catch (e) {
-      setDetailError(e?.message ?? "Error cargando detalle");
+    } catch (error) {
+      setDetailError(error?.message ?? "Error cargando detalle");
     } finally {
       setDetailLoading(false);
     }
   }
 
-  // RENDER CONDICIONAL: Login
   if (!token) {
     return (
-      <div className={`app ${isLight ? "light-mode" : ""}`}>
+      <div className="app">
         <div className="bg" />
         <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
 
-  // RENDER: App Principal
   return (
     <Router>
-      <div className={`app ${isLight ? "light-mode" : ""}`} style={{ display: "flex" }}>
+      <div className="app" style={{ display: "flex" }}>
         <Sidebar />
 
-        {/* Añadimos un margen izquierdo para que el contenido no quede debajo del Sidebar */}
         <div className="main-content" style={{ flex: 1, marginLeft: "240px" }}>
           <div className="bg" />
           <div className="container">
-            <TopBar
-              healthOk={healthOk}
-              total={items.length}
-              onLogout={handleLogout}
-              rightContent={
-                <button onClick={() => setTelegramOpen(true)} style={telegramBtnStyle}>
-                  Telegram
-                </button>
-              }
-            />
+            <TopBar healthOk={healthOk} total={items.length} onLogout={handleLogout} />
 
             <Routes>
-              {/* Esta es tu pantalla principal actual */}
-              <Route path="/" element={
-                loadingList ? (
-                  <div className="loading">Sincronizando cerebro digital...</div>
-                ) : (
-                  <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
-                )
-              } />
-
-              {/* Esta es la nueva pestaña */}
+              <Route
+                path="/"
+                element={
+                  loadingList ? (
+                    <div className="loading">Sincronizando cerebro digital...</div>
+                  ) : (
+                    <CardGrid items={items} setItems={setItems} onOpen={openDetail} />
+                  )
+                }
+              />
               <Route path="/novedades" element={<Novedades onOpenDetail={openDetail} />} />
               <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} />} />
-
+              <Route path="/mapa" element={<MapaView items={items} onOpenDetail={openDetail} />} />
+              <Route path="/ciudades" element={<CiudadesView onOpenDetail={openDetail} />} />
             </Routes>
           </div>
         </div>
 
-        {/* El botón flotante y modales se mantienen globales */}
-        <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
-        <CreateItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
-        <TelegramLinkModal open={telegramOpen} onClose={() => setTelegramOpen(false)} />
-        {/* El botón flotante y modales se mantienen globales */}
         <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
 
         <CreateItemModal
@@ -172,7 +144,6 @@ export default function App() {
           onCreate={handleCreate}
         />
 
-        {/* 👇 AQUI ESTÁ EL MODAL QUE FALTABA 👇 */}
         <InboxDetailModal
           open={detailOpen}
           item={detailItem}
@@ -180,30 +151,25 @@ export default function App() {
           error={detailError}
           onClose={() => setDetailOpen(false)}
         />
-
-
-
-
       </div>
     </Router>
   );
 }
 
 const fabStyle = {
-  position: "fixed", bottom: 30, right: 30,
-  width: 60, height: 60, borderRadius: "50%",
-  background: "#46d37e", color: "#0b0f0d",
-  fontSize: 32, fontWeight: "bold", border: "none",
-  cursor: "pointer", boxShadow: "0 0 20px rgba(70,211,126,0.4)",
-  zIndex: 1000, transition: "transform 0.2s"
-};
-
-const telegramBtnStyle = {
-  padding: "8px 14px",
-  borderRadius: 999,
-  border: "1px solid rgba(70,211,126,.35)",
-  background: "rgba(70,211,126,.12)",
-  color: "var(--text)",
+  position: "fixed",
+  bottom: 30,
+  right: 30,
+  width: 60,
+  height: 60,
+  borderRadius: "50%",
+  background: "#46d37e",
+  color: "#0b0f0d",
+  fontSize: 32,
   fontWeight: "bold",
+  border: "none",
   cursor: "pointer",
+  boxShadow: "0 0 20px rgba(70,211,126,0.4)",
+  zIndex: 1000,
+  transition: "transform 0.2s",
 };

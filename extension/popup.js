@@ -1,178 +1,227 @@
 const API_URL = "http://127.0.0.1:8000";
 
-// --- INICIO: CONTROL DE VISTAS ---
-document.addEventListener('DOMContentLoaded', async () => {
-  const data = await chrome.storage.local.get(['access_token']);
-  if (data.access_token) {
-    showView('mainView');
-  } else {
-    showView('authView');
-  }
-});
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: "access_token",
+  USE_LOCATION: "use_location",
+};
 
-function showView(viewId) {
-  document.getElementById('authView').classList.add('hidden');
-  document.getElementById('mainView').classList.add('hidden');
-  document.getElementById(viewId).classList.remove('hidden');
+const VIEWS = {
+  AUTH: "authView",
+  MAIN: "mainView",
+};
+
+function el(id) {
+  return document.getElementById(id);
 }
 
-// Switch entre login y registro
-document.getElementById('toRegister').onclick = () => {
-  document.getElementById('loginForm').classList.add('hidden');
-  document.getElementById('registerForm').classList.remove('hidden');
-};
-document.getElementById('toLogin').onclick = () => {
-  document.getElementById('registerForm').classList.add('hidden');
-  document.getElementById('loginForm').classList.remove('hidden');
-};
+async function getStorage(keys) {
+  return chrome.storage.local.get(keys);
+}
 
-// --- LÓGICA DE LOGIN ---
-document.getElementById('loginBtn').onclick = async () => {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPass').value.trim();
-  const status = document.getElementById('status');
+async function setStorage(data) {
+  return chrome.storage.local.set(data);
+}
+
+async function removeStorage(keys) {
+  return chrome.storage.local.remove(keys);
+}
+
+function setStatus(message) {
+  const status = el("status");
+  if (status) status.textContent = message;
+}
+
+function showView(viewId) {
+  el(VIEWS.AUTH).classList.add("hidden");
+  el(VIEWS.MAIN).classList.add("hidden");
+  el(viewId).classList.remove("hidden");
+}
+
+async function initializeView() {
+  const data = await getStorage([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.USE_LOCATION]);
+  showView(data.access_token ? VIEWS.MAIN : VIEWS.AUTH);
+
+  const locationToggle = el("locationToggle");
+  if (locationToggle) {
+    locationToggle.checked = Boolean(data.use_location);
+  }
+}
+
+function bindAuthViewToggles() {
+  el("toRegister").onclick = () => {
+    el("loginForm").classList.add("hidden");
+    el("registerForm").classList.remove("hidden");
+  };
+
+  el("toLogin").onclick = () => {
+    el("registerForm").classList.add("hidden");
+    el("loginForm").classList.remove("hidden");
+  };
+}
+
+async function login() {
+  const email = el("loginEmail").value.trim();
+  const password = el("loginPass").value.trim();
 
   if (!email || !password) {
-    status.textContent = "⚠️ Email y contraseña requeridos";
+    setStatus("⚠️ Email y contrasena requeridos");
     return;
   }
 
   try {
-    // Intentamos login con JSON (según tu README)
-    const resp = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
 
-    const data = await resp.json();
-
-    if (resp.ok) {
-      await chrome.storage.local.set({ access_token: data.access_token });
-      status.textContent = "✅ Sesión iniciada";
-      setTimeout(() => showView('mainView'), 500);
-    } else {
-      console.error("Error Login:", data.detail);
-      status.textContent = "❌ Credenciales incorrectas";
+    const data = await response.json();
+    if (!response.ok || !data?.access_token) {
+      setStatus("❌ Credenciales incorrectas");
+      return;
     }
-  } catch (e) {
-    status.textContent = "❌ Error de conexión con el servidor";
+
+    await setStorage({ [STORAGE_KEYS.ACCESS_TOKEN]: data.access_token });
+    setStatus("✅ Sesion iniciada");
+    setTimeout(() => showView(VIEWS.MAIN), 500);
+  } catch (_error) {
+    setStatus("❌ Error de conexion con el servidor");
   }
-};
+}
 
-// --- ESCUCHAR LA TECLA ENTER PARA EL LOGIN ---
-const handleLoginEnter = (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault(); // Evita que el formulario recargue la página por defecto
-    document.getElementById('loginBtn').click(); // Simula un clic en tu botón de Entrar
-  }
-};
-
-// Se lo aplicamos a los campos de email y contraseña del login
-document.getElementById('loginEmail').addEventListener('keypress', handleLoginEnter);
-document.getElementById('loginPass').addEventListener('keypress', handleLoginEnter);
-
-// (Opcional) Lo hacemos también para el último campo del registro
-document.getElementById('regPass').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    document.getElementById('registerBtn').click();
-  }
-});
-
-// --- LÓGICA DE REGISTRO (Corregida para depurar el 422) ---
-document.getElementById('registerBtn').onclick = async () => {
-  const email = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPass').value.trim();
-  const full_name = document.getElementById('regName').value.trim();
-  const status = document.getElementById('status');
+async function register() {
+  const email = el("regEmail").value.trim();
+  const password = el("regPass").value.trim();
+  const full_name = el("regName").value.trim();
 
   if (!email || !password || !full_name) {
-    status.textContent = "⚠️ Todos los campos son obligatorios";
+    setStatus("⚠️ Todos los campos son obligatorios");
     return;
   }
 
   try {
-    const resp = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, full_name })
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name }),
     });
 
-    const data = await resp.json();
-
-    if (resp.ok) {
-      status.textContent = "✅ ¡Cuenta creada! Ya puedes entrar.";
-      setTimeout(() => document.getElementById('toLogin').click(), 1500);
-    } else {
-      // Si hay error 422, esto imprimirá en la consola qué campo está mal
-      console.error("Detalle del error 422:", data.detail);
-
-      if (Array.isArray(data.detail)) {
-        status.textContent = `❌ Error: ${data.detail[0].msg}`;
+    const data = await response.json();
+    if (!response.ok) {
+      if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
+        setStatus(`❌ Error: ${data.detail[0].msg}`);
       } else {
-        status.textContent = `❌ ${data.detail || "Error al registrar"}`;
+        setStatus(`❌ ${data?.detail || "Error al registrar"}`);
       }
+      return;
     }
-  } catch (e) {
-    status.textContent = "❌ Error de conexión";
+
+    setStatus("✅ Cuenta creada. Ya puedes iniciar sesion.");
+    setTimeout(() => el("toLogin").click(), 1200);
+  } catch (_error) {
+    setStatus("❌ Error de conexion");
   }
-};
+}
 
-// --- LOGOUT ---
-document.getElementById('logoutBtn').onclick = async () => {
-  await chrome.storage.local.remove(['access_token']);
-  document.getElementById('status').textContent = "Sesión cerrada";
-  showView('authView');
-};
+async function logout() {
+  await removeStorage([STORAGE_KEYS.ACCESS_TOKEN]);
+  setStatus("Sesion cerrada");
+  showView(VIEWS.AUTH);
+}
 
-// --- BOTONES DE GUARDADO ---
+function bindLocationToggle() {
+  const locationToggle = el("locationToggle");
+  if (!locationToggle) return;
 
-// 1. Enviar Manual
-document.getElementById('saveBtn').addEventListener('click', () => {
-  const content = document.getElementById('content').value.trim();
-  const status = document.getElementById('status');
-
-  if (!content) {
-    status.textContent = "⚠️ Escribe algo primero.";
-    return;
-  }
-
-  let payload = { source: "extension" };
-  if (content.startsWith('http')) {
-    chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: content });
-  } else {
-    payload.item_type = "TEXT";
-    payload.content = content;
-    chrome.runtime.sendMessage({ action: "SAVE_MANUAL", payload: payload });
-  }
-
-  status.textContent = "✅ Enviado";
-  setTimeout(() => window.close(), 1000);
-});
-
-// 2. Guardar Pestaña Actual
-document.getElementById('autoSaveBtn').addEventListener('click', () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]) {
-      chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: tabs[0].url });
-      document.getElementById('status').textContent = "✅ Pestaña guardada";
-      setTimeout(() => window.close(), 1000);
-    }
+  locationToggle.addEventListener("change", async (event) => {
+    await setStorage({ [STORAGE_KEYS.USE_LOCATION]: event.target.checked });
+    setStatus(event.target.checked ? "✅ Ubicacion activada" : "Ubicacion desactivada");
   });
-});
+}
 
-// 3. Recortar y Guardar
-document.getElementById('screenshotBtn').addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: "INIT_SCREENSHOT" });
-  window.close();
-});
+function detectItemTypeFromContent(content) {
+  const lower = content.toLowerCase();
+  if (content.startsWith("data:image/")) return "IMAGE";
+  if (content.startsWith("data:application/pdf")) return "PDF";
+  if (lower.includes("youtube.com/") || lower.includes("youtu.be/")) return "YOUTUBE";
+  if (lower.endsWith(".pdf")) return "PDF";
+  if (lower.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) return "IMAGE";
+  if (content.startsWith("http")) return "WEB";
+  return "TEXT";
+}
 
-// --- BOTÓN: ABRIR CEREBRO DIGITAL (WEB) ---
-document.getElementById('openWebBtn').addEventListener('click', () => {
-  // Abre una nueva pestaña en el navegador apuntando a tu frontend de Vite
-  chrome.tabs.create({ url: "http://localhost:5173" });
+function sendSaveMessage(payload) {
+  chrome.runtime.sendMessage(payload);
+}
 
-  // Opcional: cerrar el popup de la extensión después de hacer clic
-  window.close();
+function bindSaveActions() {
+  el("saveBtn").addEventListener("click", () => {
+    const content = el("content").value.trim();
+    if (!content) {
+      setStatus("⚠️ Escribe algo primero.");
+      return;
+    }
+
+    setStatus("✅ Enviando...");
+    const type = detectItemTypeFromContent(content);
+
+    if (type === "TEXT") {
+      sendSaveMessage({
+        action: "SAVE_MANUAL",
+        payload: { source: "extension", item_type: "TEXT", content },
+      });
+    } else {
+      sendSaveMessage({ action: "SAVE_INBOX", url: content });
+    }
+
+    setTimeout(() => window.close(), 800);
+  });
+
+  el("autoSaveBtn").addEventListener("click", () => {
+    setStatus("✅ Pestana guardada");
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs?.[0]?.url) return;
+      sendSaveMessage({ action: "SAVE_INBOX", url: tabs[0].url });
+      setTimeout(() => window.close(), 800);
+    });
+  });
+
+  el("screenshotBtn").addEventListener("click", () => {
+    sendSaveMessage({ action: "INIT_SCREENSHOT" });
+    window.close();
+  });
+
+  el("openWebBtn").addEventListener("click", () => {
+    chrome.tabs.create({ url: "http://localhost:5173" });
+    window.close();
+  });
+}
+
+function bindEnterShortcuts() {
+  const triggerOnEnter = (inputId, buttonId) => {
+    el(inputId).addEventListener("keypress", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      el(buttonId).click();
+    });
+  };
+
+  triggerOnEnter("loginEmail", "loginBtn");
+  triggerOnEnter("loginPass", "loginBtn");
+  triggerOnEnter("regPass", "registerBtn");
+}
+
+function bindButtons() {
+  el("loginBtn").onclick = login;
+  el("registerBtn").onclick = register;
+  el("logoutBtn").onclick = logout;
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await initializeView();
+  bindAuthViewToggles();
+  bindButtons();
+  bindLocationToggle();
+  bindSaveActions();
+  bindEnterShortcuts();
 });

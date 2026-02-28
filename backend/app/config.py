@@ -27,12 +27,10 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     GROQ_MODEL_TEXT: str = "llama-3.1-8b-instant"
     GROQ_MODEL_VISION: str = "meta-llama/llama-4-scout-17b-16e-instruct"
-    TELEGRAM_BOT_TOKEN: str = ""
-    TELEGRAM_WEBHOOK_SECRET: str = ""
-    TELEGRAM_LINK_CODE_TTL_MINUTES: int = 15
     GEOCODER_ENABLED: bool = True
     GEOCODER_BASE_URL: str = "https://nominatim.openstreetmap.org/reverse"
-    GEOCODER_TIMEOUT_SECONDS: float = 2.5
+    GEOCODER_FALLBACK_BASE_URL: str = "https://api.bigdatacloud.net/data/reverse-geocode-client"
+    GEOCODER_TIMEOUT_SECONDS: float = 5.0
     GEOCODER_USER_AGENT: str = "kelea-digital-brain/1.0"
 
 

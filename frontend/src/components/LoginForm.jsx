@@ -1,35 +1,34 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
+
 import { login, register as registerApi } from "../api/auth";
 import logoImg from "../assets/remit-logo.png";
 
 export default function LoginForm({ onLoginSuccess }) {
-  const [isRegister, setIsRegister] = useState(false); // Estado para alternar modo
+  const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState(""); // Nuevo campo para registro
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setError("");
     setSuccess("");
     setLoading(true);
 
     try {
       if (isRegister) {
-        // Lógica de Registro
         await registerApi(username, email, password);
-        setSuccess("¡Cuenta creada! Ya puedes iniciar sesión.");
-        setIsRegister(false); // Volvemos al login tras registrarse
+        setSuccess("Cuenta creada. Ya puedes iniciar sesion.");
+        setIsRegister(false);
       } else {
-        // Lógica de Login
         await login(username, password);
         onLoginSuccess();
       }
     } catch (err) {
-      setError(err.message || "Ocurrió un error");
+      setError(err.message || "Ocurrio un error");
     } finally {
       setLoading(false);
     }
@@ -38,18 +37,20 @@ export default function LoginForm({ onLoginSuccess }) {
   return (
     <div style={loginContainerStyle}>
       <form onSubmit={handleSubmit} style={formStyle}>
-        <div style={{ textAlign: "center", marginBottom: "5px" }}> {/* Reducido de 40px a 10px */}
+        <div style={{ textAlign: "center", marginBottom: "5px" }}>
           <img src={logoImg} alt="Logo" style={{ width: "100px", height: "auto" }} />
         </div>
-        <h2 style={{ color: "var(--neon)", textAlign: "center", marginBottom: '5px' }}>
-          {isRegister ? "RemIt - Registro" : "RemIt - Inicio de Sesión"}
+
+        <h2 style={{ color: "var(--neon)", textAlign: "center", marginBottom: "5px" }}>
+          {isRegister ? "Remit - Registro" : "Remit - Inicio de sesion"}
         </h2>
-        <p style={{ textAlign: "center", opacity: 0.7, marginBottom: '20px' }}>
-          {isRegister ? "Crea tu cuenta de acceso" : "Identifícate para acceder"}
+
+        <p style={{ textAlign: "center", opacity: 0.7, marginBottom: "20px" }}>
+          {isRegister ? "Crea tu cuenta de acceso" : "Identificate para acceder"}
         </p>
-        
-        {error && <div className="error-msg" style={errorStyle}>{error}</div>}
-        {success && <div className="success-msg" style={successStyle}>{success}</div>}
+
+        {error && <div style={errorStyle}>{error}</div>}
+        {success && <div style={successStyle}>{success}</div>}
 
         <input
           type="text"
@@ -73,27 +74,28 @@ export default function LoginForm({ onLoginSuccess }) {
 
         <input
           type="password"
-          placeholder="Contraseña"
+          placeholder="Contrasena"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={inputStyle}
           required
         />
-        
+
         <button disabled={loading} style={loginBtnStyle}>
           {loading ? "PROCESANDO..." : isRegister ? "CREAR CUENTA" : "ENTRAR"}
         </button>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.9rem' }}>
-          <span style={{ opacity: 0.6 }}>
-            {isRegister ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}
-          </span>
-          <button 
+        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "0.9rem" }}>
+          <span style={{ opacity: 0.6 }}>{isRegister ? "Ya tienes cuenta?" : "No tienes cuenta?"}</span>
+          <button
             type="button"
-            onClick={() => { setIsRegister(!isRegister); setError(""); }}
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setError("");
+            }}
             style={toggleBtnStyle}
           >
-            {isRegister ? "Inicia Sesión" : "Regístrate aquí"}
+            {isRegister ? "Inicia sesion" : "Registrate aqui"}
           </button>
         </div>
       </form>
@@ -101,7 +103,6 @@ export default function LoginForm({ onLoginSuccess }) {
   );
 }
 
-// --- Estilos adicionales ---
 const errorStyle = {
   background: "rgba(255, 0, 0, 0.2)",
   color: "#ff4444",
@@ -109,7 +110,7 @@ const errorStyle = {
   borderRadius: "8px",
   marginBottom: "15px",
   fontSize: "0.85rem",
-  border: "1px solid #ff4444"
+  border: "1px solid #ff4444",
 };
 
 const successStyle = {
@@ -119,7 +120,7 @@ const successStyle = {
   borderRadius: "8px",
   marginBottom: "15px",
   fontSize: "0.85rem",
-  border: "1px solid var(--neon)"
+  border: "1px solid var(--neon)",
 };
 
 const toggleBtnStyle = {
@@ -129,12 +130,16 @@ const toggleBtnStyle = {
   cursor: "pointer",
   fontWeight: "bold",
   marginLeft: "5px",
-  textDecoration: "underline"
+  textDecoration: "underline",
 };
 
 const loginContainerStyle = {
-  display: "flex", justifyContent: "center", alignItems: "center", height: "100vh",
-  position: "relative", zIndex: 1
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  height: "100vh",
+  position: "relative",
+  zIndex: 1,
 };
 
 const formStyle = {
@@ -144,7 +149,7 @@ const formStyle = {
   border: "2px solid var(--neon)",
   width: "100%",
   maxWidth: "400px",
-  boxShadow: "0 0 30px rgba(70, 211, 126, 0.2)"
+  boxShadow: "0 0 30px rgba(70, 211, 126, 0.2)",
 };
 
 const inputStyle = {
@@ -155,7 +160,7 @@ const inputStyle = {
   border: "1px solid rgba(70,211,126,0.3)",
   background: "rgba(0,0,0,0.3)",
   color: "white",
-  outline: "none"
+  outline: "none",
 };
 
 const loginBtnStyle = {
@@ -166,17 +171,5 @@ const loginBtnStyle = {
   border: "none",
   borderRadius: "12px",
   fontWeight: "bold",
-  cursor: "pointer"
-};
-
-const logoContainerStyle = {
-  textAlign: "center",
-  marginBottom: "40px",
-};
-
-const logoImageStyle = {
-  width: "50%",      // Ajusta según el tamaño de tu PNG
-  maxWidth: "150px",
-  height: "auto",
-  filter: "drop-shadow(0 0 10px rgba(70, 211, 126, 0.3))" // Opcional: efecto neón
+  cursor: "pointer",
 };

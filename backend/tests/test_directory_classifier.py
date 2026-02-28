@@ -1,4 +1,4 @@
-from app.models.inbox_item import InboxItem, InboxItemType
+﻿from app.models.inbox_item import InboxItem, InboxItemType
 from app.service.directory_classifier import DirectoryClassifier
 
 
@@ -54,23 +54,13 @@ def test_build_messages_adds_image_for_image_and_pdf():
     image_item = _build_item(InboxItemType.IMAGE, preview_base64=image_data)
     pdf_item = _build_item(InboxItemType.PDF, preview_base64=image_data)
 
-    image_messages = classifier._build_messages(image_item, ["Trabajo", "Otros"])
-    pdf_messages = classifier._build_messages(pdf_item, ["Trabajo", "Otros"])
+    image_messages = classifier._build_messages(image_item, ["Trabajo", "Documentos"])
+    pdf_messages = classifier._build_messages(pdf_item, ["Trabajo", "Documentos"])
 
     assert image_messages[1]["content"][1]["type"] == "image_url"
     assert image_messages[1]["content"][1]["image_url"]["url"] == image_data
     assert pdf_messages[1]["content"][1]["type"] == "image_url"
     assert pdf_messages[1]["content"][1]["image_url"]["url"] == image_data
-
-
-def test_build_messages_uses_favicon_for_web_when_available():
-    classifier = DirectoryClassifier()
-    icon_data = "data:image/png;base64,icon123"
-    web_item = _build_item(InboxItemType.WEB, favicon_base64=icon_data)
-
-    messages = classifier._build_messages(web_item, ["Trabajo"])
-    assert messages[1]["content"][1]["type"] == "image_url"
-    assert messages[1]["content"][1]["image_url"]["url"] == icon_data
 
 
 def test_build_messages_text_only_for_text_items():
@@ -82,25 +72,7 @@ def test_build_messages_text_only_for_text_items():
     assert messages[1]["content"][0]["type"] == "text"
 
 
-def test_build_messages_prioritizes_content_and_metadata():
-    classifier = DirectoryClassifier()
-    item = _build_item(
-        InboxItemType.WEB,
-        title="Titulo corto",
-        content="Contenido principal detallado",
-        metadata_json={
-            "og_description": "Descripcion OG importante",
-            "keywords": ["backend", "arquitectura"],
-        },
-    )
-    messages = classifier._build_messages(item, ["Trabajo"])
-    text_block = messages[1]["content"][0]["text"]
-    assert "Texto principal para clasificar" in text_block
-    assert "Contenido principal detallado" in text_block
-    assert "Descripcion OG importante" in text_block
-
-
-def test_suggest_with_groq_success_and_sanitization(monkeypatch):
+def test_suggest_with_groq_returns_existing_match(monkeypatch):
     classifier = DirectoryClassifier()
     item = _build_item(InboxItemType.TEXT, content="facturas y pagos del mes")
 
@@ -110,17 +82,17 @@ def test_suggest_with_groq_success_and_sanitization(monkeypatch):
     monkeypatch.setattr(
         "app.service.directory_classifier.requests.post",
         lambda *args, **kwargs: MockGroqResponse(
-            {"choices": [{"message": {"content": '{"directory_name":"  Finanzas/2026 !!!  "}'}}]}
+            {"choices": [{"message": {"content": '{"directory_name":"Finanzas"}'}}]}
         ),
     )
 
     result = classifier.suggest_directory_name(item, ["Trabajo", "Finanzas"])
-    assert result == "Finanzas 2026"
+    assert result == "Finanzas"
 
 
-def test_suggest_with_groq_invalid_json_falls_back(monkeypatch):
+def test_suggest_with_groq_non_existing_falls_back_to_existing(monkeypatch):
     classifier = DirectoryClassifier()
-    item = _build_item(InboxItemType.PDF, title="Manual de API", content="")
+    item = _build_item(InboxItemType.TEXT, content="tema de producto")
 
     monkeypatch.setattr("app.service.directory_classifier.settings.LLM_ENABLED", True)
     monkeypatch.setattr("app.service.directory_classifier.settings.LLM_PROVIDER", "groq")
@@ -128,74 +100,31 @@ def test_suggest_with_groq_invalid_json_falls_back(monkeypatch):
     monkeypatch.setattr(
         "app.service.directory_classifier.requests.post",
         lambda *args, **kwargs: MockGroqResponse(
-            {"choices": [{"message": {"content": "not-json"}}]}
+            {"choices": [{"message": {"content": '{"directory_name":"Innovacion"}'}}]}
         ),
     )
 
-    result = classifier.suggest_directory_name(item, ["Trabajo", "Documentos"])
-    assert isinstance(result, str)
-    assert result
-    assert "/" not in result
+    result = classifier.suggest_directory_name(item, ["Trabajo", "Personal", "Finanzas", "Documentos"])
+    assert result in {"Trabajo", "Personal", "Finanzas", "Documentos"}
 
 
-def test_suggest_when_llm_disabled_falls_back(monkeypatch):
+def test_suggest_when_llm_disabled_uses_existing_fallback(monkeypatch):
     classifier = DirectoryClassifier()
-    item = _build_item(InboxItemType.TEXT, content="pago de impuestos trimestral")
+    item = _build_item(InboxItemType.PDF, content="manual tecnico")
 
     monkeypatch.setattr("app.service.directory_classifier.settings.LLM_ENABLED", False)
-    result = classifier.suggest_directory_name(item, ["Finanzas", "Otros"])
-    assert isinstance(result, str)
-    assert result
-
-
-def test_fallback_derives_new_directory_name_not_general():
-    classifier = DirectoryClassifier()
-    item = _build_item(
-        InboxItemType.TEXT,
-        title="benchmark embeddings semanticos",
-        content="comparativa para ranking y recall",
-    )
-    result = classifier._fallback_directory(item)
-    assert result != "General"
-    assert isinstance(result, str)
-    assert result
-
-
-def test_fallback_uses_type_default_when_text_is_empty():
-    classifier = DirectoryClassifier()
-    image_item = _build_item(InboxItemType.IMAGE, title="", content="")
-    web_item = _build_item(InboxItemType.WEB, title="", content="")
-
-    assert classifier._fallback_directory(image_item) == "Imagenes"
-    assert classifier._fallback_directory(web_item) == "Enlaces"
-
-
-def test_fallback_does_not_force_existing_directory(monkeypatch):
-    classifier = DirectoryClassifier()
-    item = _build_item(
-        InboxItemType.TEXT,
-        title="Arquitectura servidor",
-        content="En kelea estamos usando una documentacion de la arquitectura del servidor",
-    )
-    monkeypatch.setattr("app.service.directory_classifier.settings.LLM_ENABLED", False)
-    result = classifier.suggest_directory_name(item, ["Kelea Docs", "Trabajo"])
-    assert isinstance(result, str)
-    assert result
-    assert result not in {"Kelea Docs", "Trabajo"}
-
-
-def test_llm_suggestion_is_not_overridden_by_existing_match(monkeypatch):
-    classifier = DirectoryClassifier()
-    item = _build_item(
-        InboxItemType.TEXT,
-        title="Arquitectura servidor",
-        content="Documento tecnico detallado para backend",
-    )
-
-    monkeypatch.setattr(
-        classifier,
-        "_suggest_with_groq",
-        lambda item, existing: "Arquitectura Backend",
-    )
     result = classifier.suggest_directory_name(item, ["Trabajo", "Documentos"])
-    assert result == "Arquitectura Backend"
+    assert result == "Documentos"
+
+
+def test_resolve_to_existing_is_case_insensitive():
+    classifier = DirectoryClassifier()
+    resolved = classifier._resolve_to_existing("trabajo", ["Trabajo", "Personal"])
+    assert resolved == "Trabajo"
+
+
+def test_fallback_returns_first_existing_when_preferred_missing():
+    classifier = DirectoryClassifier()
+    item = _build_item(InboxItemType.IMAGE, content="captura")
+    result = classifier._fallback_directory(item, ["Kelea Docs", "Producto"])
+    assert result == "Kelea Docs"

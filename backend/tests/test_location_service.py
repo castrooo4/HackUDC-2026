@@ -70,3 +70,19 @@ def test_resolve_city_disabled_geocoder(monkeypatch):
     monkeypatch.setattr("app.service.location_service.settings.GEOCODER_ENABLED", False)
     city = service.resolve_city(43.3623, -8.4115)
     assert city is None
+
+
+def test_resolve_city_uses_fallback_provider_when_nominatim_fails(monkeypatch):
+    service = LocationService()
+    calls = {"count": 0}
+
+    def fake_get(url, params, headers, timeout):
+        calls["count"] += 1
+        if "nominatim" in url:
+            raise RuntimeError("nominatim down")
+        return MockResponse({"city": "Madrid"})
+
+    monkeypatch.setattr("app.service.location_service.requests.get", fake_get)
+    city = service.resolve_city(40.4168, -3.7038)
+    assert city == "Madrid"
+    assert calls["count"] == 2

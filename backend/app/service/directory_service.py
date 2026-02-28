@@ -38,8 +38,9 @@ class DirectoryService:
         ).all()
         existing_names = [directory.name for directory in root_directories]
         directory_name = self.classifier.suggest_directory_name(item, existing_names)
-        directory_name = self._resolve_existing_name(directory_name, existing_names)
-        directory = self._get_or_create_root_directory(session, user_id, directory_name)
+        directory = self._get_existing_root_directory_by_name(root_directories, directory_name)
+        if directory is None:
+            directory = root_directories[0]
 
         item.directory_id = directory.id
         item.status = InboxStatus.PROCESSED
@@ -115,15 +116,16 @@ class DirectoryService:
         root_ids = sorted(children_by_parent[None], key=lambda directory_id: nodes_by_id[directory_id].name.lower())
         return DirectoryTreeResponse(roots=[nodes_by_id[directory_id] for directory_id in root_ids])
 
-    def _resolve_existing_name(self, suggested_name: str, existing_names: list[str]) -> str:
-        if not suggested_name.strip():
-            return "Inbox"
-
+    def _get_existing_root_directory_by_name(
+        self, root_directories: list[Directory], suggested_name: str
+    ) -> Directory | None:
         normalized_suggested = suggested_name.strip().lower()
-        for name in existing_names:
-            if name.lower() == normalized_suggested:
-                return name
-        return suggested_name
+        if not normalized_suggested:
+            return None
+        for directory in root_directories:
+            if directory.name.lower() == normalized_suggested:
+                return directory
+        return None
 
     def _get_or_create_root_directory(self, session: Session, user_id: int, name: str) -> Directory:
         statement = select(Directory).where(

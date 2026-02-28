@@ -1,14 +1,15 @@
-// src/components/AnimatedCreatePopup.jsx
-import { motion, AnimatePresence } from "framer-motion";
-import NewInboxItemForm from "./NewInboxItemForm";
+﻿import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 
+import NewInboxItemForm from "./NewInboxItemForm";
+
+const Motion = motion;
+
 export default function AnimatedCreatePopup({ open, onClose, onCreate }) {
-  // Estado local para limpiar el formulario al cerrar
   const [formKey, setFormKey] = useState(0);
 
   const handleClose = () => {
-    setFormKey(prev => prev + 1); // Fuerza un re-render del form para limpiarlo
+    setFormKey((prev) => prev + 1);
     onClose();
   };
 
@@ -16,8 +17,7 @@ export default function AnimatedCreatePopup({ open, onClose, onCreate }) {
     <AnimatePresence>
       {open && (
         <>
-          {/* 1. Backdrop invisible para cerrar al hacer clic fuera */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -25,9 +25,7 @@ export default function AnimatedCreatePopup({ open, onClose, onCreate }) {
             style={backdropStyle}
           />
 
-          {/* 2. El Contenedor del Formulario Animado */}
-          <motion.div
-            // Punto de origen de la animación: Abajo a la derecha (donde está el botón)
+          <Motion.div
             style={popupContainerStyle}
             initial={{ opacity: 0, scale: 0, y: 100, x: 100 }}
             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
@@ -36,17 +34,17 @@ export default function AnimatedCreatePopup({ open, onClose, onCreate }) {
           >
             <div style={headerStyle}>
               <b style={{ color: "#46d37e" }}>NUEVA NOTA</b>
-              <button onClick={handleClose} style={closeBtnStyle}>✕</button>
+              <button onClick={handleClose} style={closeBtnStyle}>x</button>
             </div>
-            
-            <NewInboxItemForm 
+
+            <NewInboxItemForm
               key={formKey}
               onCreate={async (payload) => {
                 await onCreate(payload);
                 handleClose();
-              }} 
+              }}
             />
-          </motion.div>
+          </Motion.div>
         </>
       )}
     </AnimatePresence>
@@ -56,14 +54,14 @@ export default function AnimatedCreatePopup({ open, onClose, onCreate }) {
 const backdropStyle = {
   position: "fixed",
   inset: 0,
-  zIndex: 99998, // Justo debajo del popup
-  background: "rgba(0,0,0,0.4)", // Un oscurecimiento sutil
-  backdropFilter: "blur(2px)"
+  zIndex: 99998,
+  background: "rgba(0,0,0,0.4)",
+  backdropFilter: "blur(2px)",
 };
 
 const popupContainerStyle = {
   position: "fixed",
-  bottom: "110px", // Espacio para el botón + abajo
+  bottom: "110px",
   right: "30px",
   width: "min(400px, 90vw)",
   background: "rgba(15, 20, 17, 0.98)",
@@ -72,8 +70,7 @@ const popupContainerStyle = {
   boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
   padding: "25px",
   zIndex: 99999,
-  // IMPORTANTE: Define el punto desde donde escala la animación
-  transformOrigin: "bottom right", 
+  transformOrigin: "bottom right",
 };
 
 const headerStyle = {
@@ -82,7 +79,7 @@ const headerStyle = {
   alignItems: "center",
   marginBottom: "20px",
   letterSpacing: "1px",
-  fontSize: "0.9rem"
+  fontSize: "0.9rem",
 };
 
 const closeBtnStyle = {
@@ -91,5 +88,5 @@ const closeBtnStyle = {
   color: "rgba(215, 239, 224, 0.6)",
   cursor: "pointer",
   fontSize: "1.2rem",
-  padding: "0 5px"
+  padding: "0 5px",
 };
