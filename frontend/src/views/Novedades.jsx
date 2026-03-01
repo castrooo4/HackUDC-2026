@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, Loader2, Folder, CheckCircle2, PartyPopper, Brain, PlusCircle } from "lucide-react";
 
 import { getPendingInbox, getDirectoriesTree, confirmOrganization } from "../api/inbox";
@@ -24,6 +24,7 @@ export default function Novedades({ onOpenDetail }) {
       window.postMessage({ type: "REMIT_WEB_TOAST", message: "Todo organizado con éxito", toastType: "success" }, "*");
     } catch (err) {
       alert(`Error al organizar algunos elementos: ${err.message}`);
+      fetchData();
       fetchData();
     } finally {
       setIsConfirmingAll(false);
@@ -64,7 +65,7 @@ export default function Novedades({ onOpenDetail }) {
       setNewFolderName("");
     } catch (err) {
       alert(`Error al organizar: ${err.message}`);
-      if (err.message.includes("409")) fetchData();
+      if (String(err.message || "").includes("409")) fetchData();
     }
   }
 
@@ -111,16 +112,10 @@ export default function Novedades({ onOpenDetail }) {
           <Sparkles style={{ color: "var(--neon)" }} size={28} />
           <h2 style={{ margin: 0, color: "var(--neon)", letterSpacing: "1px" }}>BANDEJA DE CLASIFICACION</h2>
         </div>
-        {/* Contenedor de botones a la derecha */}
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <div style={badgeStyle}>{pendingItems.length} PENDIENTES</div>
-          
           {pendingItems.length > 0 && (
-            <button 
-              onClick={handleConfirmAll} 
-              disabled={isConfirmingAll}
-              style={confirmAllBtnStyle}
-            >
+            <button onClick={handleConfirmAll} disabled={isConfirmingAll} style={confirmAllBtnStyle}>
               {isConfirmingAll ? "PROCESANDO..." : "CONFIRMAR TODO"}
             </button>
           )}
@@ -145,7 +140,9 @@ export default function Novedades({ onOpenDetail }) {
             <div key={item.id} style={cardNovedadStyle}>
               <div style={itemHeaderStyle} onClick={() => onOpenDetail(item.id)} title="Haz click para ver detalle">
                 <div style={{ flex: 1 }}>
-                  <div style={sourceTagStyle}>{item.item_type} - {item.source}</div>
+                  <div style={sourceTagStyle}>
+                    {item.item_type} - {item.source}
+                  </div>
                   <h3 style={itemTitleStyle}>{item.title || `Entrada #${item.id}`}</h3>
                   {item.content && <p style={contentPreviewStyle}>{item.content}</p>}
                 </div>
@@ -182,9 +179,13 @@ export default function Novedades({ onOpenDetail }) {
                       }}
                       defaultValue=""
                     >
-                      <option value="" disabled>Mover a carpeta...</option>
+                      <option value="" disabled>
+                        Mover a carpeta...
+                      </option>
                       {directories.map((dir) => (
-                        <option key={dir.id} value={dir.id}>{dir.name || `Carpeta ${dir.id}`}</option>
+                        <option key={dir.id} value={dir.id}>
+                          {dir.name || `Carpeta ${dir.id}`}
+                        </option>
                       ))}
                     </select>
                   </div>

@@ -500,6 +500,132 @@ def test_list_inbox_items_by_city_endpoint(client, auth_headers):
     assert madrid.json()["id"] not in ids
 
 
+def test_top_review_returns_ranked_items_with_factors(client, auth_headers):
+    first = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota repetida para priorizar backend"},
+        headers=auth_headers,
+    )
+    second = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota repetida para priorizar backend"},
+        headers=auth_headers,
+    )
+    third = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "recordatorio puntual de documentos"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert third.status_code == 201
+
+    response = client.get("/inbox/review/top?limit=10", headers=auth_headers)
+    assert response.status_code == 200
+    rows = response.json()
+    assert rows
+    assert len(rows) <= 10
+    assert all("item" in row and "priority_score" in row and "factors" in row for row in rows)
+    assert all("recency" in row["factors"] for row in rows)
+    assert rows[0]["item"]["id"] == second.json()["id"]
+    assert rows[0]["item"]["save_count"] >= 2
+
+
+def test_top_review_uses_current_location_when_available(client, auth_headers):
+    far_item = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "item lejos",
+            "location_lat": 40.4168,
+            "location_lon": -3.7038,
+        },
+        headers=auth_headers,
+    )
+    near_item = client.post(
+        "/inbox",
+        json={
+            "item_type": "TEXT",
+            "content": "item cerca",
+            "location_lat": 43.3623,
+            "location_lon": -8.4115,
+        },
+        headers=auth_headers,
+    )
+    assert far_item.status_code == 201
+    assert near_item.status_code == 201
+
+    without_location = client.get("/inbox/review/top?limit=10", headers=auth_headers)
+    with_location = client.get(
+        "/inbox/review/top?limit=10&current_lat=43.3623&current_lon=-8.4115",
+        headers=auth_headers,
+    )
+    assert without_location.status_code == 200
+    assert with_location.status_code == 200
+
+    rows_without = without_location.json()
+    rows_with = with_location.json()
+    assert rows_without and rows_with
+    assert all(row["factors"]["distance_km"] is None for row in rows_without)
+    assert any(row["factors"]["distance_km"] is not None for row in rows_with)
+
+    by_id_with = {row["item"]["id"]: row for row in rows_with}
+    near_id = near_item.json()["id"]
+    far_id = far_item.json()["id"]
+    assert by_id_with[near_id]["factors"]["location"] >= by_id_with[far_id]["factors"]["location"]
+
+
+def test_top_review_increases_score_with_richer_metadata(client, monkeypatch, auth_headers):
+    def fake_get(url, timeout=10, headers=None):  # noqa: ARG001
+        if "youtube.com/oembed" in url:
+            return MockResponse(
+                status_code=200,
+                json_data={
+                    "title": "Video metadata rico",
+                    "author_name": "Canal Test",
+                    "thumbnail_url": "https://img.youtube.com/vi/test/hqdefault.jpg",
+                },
+            )
+        if "youtube.com/watch?v=test" in url:
+            html = """
+                <html><head>
+                <meta itemprop="duration" content="PT10M00S">
+                <meta itemprop="uploadDate" content="2026-02-20">
+                <meta itemprop="interactionCount" content="1234">
+                <meta name="keywords" content="backend,api,fastapi">
+                <meta property="og:description" content="descripcion larga de prueba">
+                </head></html>
+            """
+            return MockResponse(status_code=200, text=html)
+        if "img.youtube.com" in url:
+            return MockResponse(status_code=200, content=_build_png_bytes(600, 338))
+        raise RuntimeError(f"Unexpected URL: {url}")
+
+    monkeypatch.setattr("app.service.inbox_ingest_service.requests.get", fake_get)
+
+    plain = client.post(
+        "/inbox",
+        json={"item_type": "TEXT", "content": "nota simple sin muchos metadatos"},
+        headers=auth_headers,
+    )
+    rich = client.post(
+        "/inbox",
+        json={"item_type": "YOUTUBE", "url": "https://youtu.be/test"},
+        headers=auth_headers,
+    )
+    assert plain.status_code == 201
+    assert rich.status_code == 201
+
+    response = client.get("/inbox/review/top?limit=10", headers=auth_headers)
+    assert response.status_code == 200
+    rows = response.json()
+    assert rows
+
+    by_id = {row["item"]["id"]: row for row in rows}
+    plain_id = plain.json()["id"]
+    rich_id = rich.json()["id"]
+    assert by_id[rich_id]["factors"]["metadata"] >= by_id[plain_id]["factors"]["metadata"]
+
 def test_list_inbox_cities(client, auth_headers):
     first = client.post(
         "/inbox",

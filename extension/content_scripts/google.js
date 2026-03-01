@@ -1,3 +1,9 @@
+const REMIT_LOGO_URL = chrome.runtime.getURL("content_scripts/remit-logo.png");
+
+function remitIconMarkup(size = 14) {
+  return `<img src="${REMIT_LOGO_URL}" alt="Remit" class="remit-btn-icon" style="width:${size}px;height:${size}px" />`;
+}
+
 function injectTextButton(title) {
   const resultCard = title.closest(".tF2Cxc") || title.closest("div.g");
   if (!resultCard) return;
@@ -15,14 +21,14 @@ function injectTextButton(title) {
 
   const btn = document.createElement("button");
   btn.className = "remit-save-btn remit-google-btn";
-  btn.innerHTML = "🧠";
+  btn.innerHTML = remitIconMarkup(14);
   btn.onclick = (event) => {
     event.preventDefault();
     event.stopPropagation();
     chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: link.href });
-    btn.innerHTML = "✅";
+    btn.innerHTML = '<span class="remit-check-icon">✓</span>';
     setTimeout(() => {
-      btn.innerHTML = "🧠";
+      btn.innerHTML = remitIconMarkup(14);
     }, 2000);
   };
   titleRow.appendChild(btn);
@@ -42,7 +48,7 @@ function injectImageButton() {
 
     const btn = document.createElement("button");
     btn.className = "remit-save-btn remit-google-btn";
-    btn.innerHTML = "🧠";
+    btn.innerHTML = remitIconMarkup(14);
 
     btn.onclick = (event) => {
       event.preventDefault();
@@ -55,9 +61,9 @@ function injectImageButton() {
       }
 
       chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: finalUrl });
-      btn.innerHTML = "✅";
+      btn.innerHTML = '<span class="remit-check-icon">✓</span>';
       setTimeout(() => {
-        btn.innerHTML = "🧠";
+        btn.innerHTML = remitIconMarkup(14);
       }, 2000);
     };
 

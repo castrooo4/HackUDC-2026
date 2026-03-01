@@ -10,6 +10,7 @@ import InboxFilters from "./components/InboxFilters.jsx";
 import LoginForm from "./components/LoginForm.jsx";
 import Sidebar from "./components/Sidebar";
 import Novedades from "./views/Novedades";
+import PrioridadView from "./views/PrioridadView";
 import CarpetaView from "./views/CarpetaView";
 import MapaView from "./views/MapaView";
 import CiudadesView from "./views/CiudadesView";
@@ -170,6 +171,7 @@ export default function App() {
                 }
               />
               <Route path="/novedades" element={<Novedades onOpenDetail={openDetail} />} />
+              <Route path="/prioridad" element={<PrioridadView onOpenDetail={openDetail} />} />
               <Route path="/carpeta/:id" element={<CarpetaView onOpenDetail={openDetail} onDeleteItem={handleDeleteItem} />} />
               <Route path="/mapa" element={<MapaView items={items} onOpenDetail={openDetail} />} />
               <Route path="/ciudades" element={<CiudadesView onOpenDetail={openDetail} onDeleteItem={handleDeleteItem} />} />

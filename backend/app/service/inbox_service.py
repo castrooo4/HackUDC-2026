@@ -10,11 +10,13 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from app.models.directory import Directory
 from app.models.inbox_item import InboxItem, InboxItemType, InboxStatus
 from app.models.text_merge_history import TextMergeHistory
 from app.schemas.inbox import (
     InboxConfirmOrganization,
     InboxCreate,
+    InboxPriorityReviewRead,
     MergeApplyRequest,
     MergeHistoryRead,
     MergeRejectRequest,
@@ -34,6 +36,7 @@ class InboxService:
     _REINGEST_FIELDS = {"item_type", "url", "file_base64", "mime_type"}
     _TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]{3,}")
     _MERGE_MIN_SIMILARITY = 0.82
+    _TOP_REVIEW_DEFAULT_LIMIT = 10
 
     def __init__(self):
         self.ingestion_service = InboxIngestionService()
@@ -170,6 +173,58 @@ class InboxService:
         )
         rows = session.exec(statement).all()
         return [(city, count) for city, count in rows if city]
+
+    def list_top_priority_review(
+        self,
+        session: Session,
+        *,
+        user_id: int,
+        limit: int = _TOP_REVIEW_DEFAULT_LIMIT,
+        current_lat: float | None = None,
+        current_lon: float | None = None,
+    ) -> list[InboxPriorityReviewRead]:
+        normalized_limit = max(1, min(100, int(limit)))
+        statement = (
+            select(InboxItem)
+            .where(
+                InboxItem.user_id == user_id,
+            )
+            .order_by(InboxItem.created_at.desc())
+        )
+        items = list(session.exec(statement).all())
+        if not items:
+            return []
+
+        directories = session.exec(select(Directory).where(Directory.user_id == user_id)).all()
+        directory_name_by_id = {directory.id: directory.name for directory in directories}
+        now = datetime.now(timezone.utc)
+
+        ranked: list[InboxPriorityReviewRead] = []
+        for item in items:
+            score, factors = self._priority_score(
+                item,
+                now=now,
+                directory_name_by_id=directory_name_by_id,
+                current_lat=current_lat,
+                current_lon=current_lon,
+            )
+            ranked.append(
+                InboxPriorityReviewRead(
+                    item=item,
+                    priority_score=round(score, 4),
+                    factors=factors,
+                )
+            )
+
+        ranked.sort(
+            key=lambda row: (
+                row.priority_score,
+                row.item.save_count,
+                row.item.created_at,
+            ),
+            reverse=True,
+        )
+        return ranked[:normalized_limit]
 
     def get_recommendations_by_item_location(
         self,
@@ -804,3 +859,172 @@ class InboxService:
         if age_days <= 90:
             return 0.05
         return 0.0
+
+    def _priority_score(
+        self,
+        item: InboxItem,
+        *,
+        now: datetime,
+        directory_name_by_id: dict[int, str],
+        current_lat: float | None = None,
+        current_lon: float | None = None,
+    ) -> tuple[float, dict]:
+        recency = self._review_recency_score(item.created_at, now=now)
+        frequency = min(1.0, max(0.0, ((item.save_count or 1) - 1) / 6.0))
+        type_score = self._review_type_score(item.item_type)
+        folder_score = self._review_folder_score(item, directory_name_by_id)
+        metadata_score = self._review_metadata_score(item)
+        location_score, location_distance_km = self._review_location_score(
+            item,
+            current_lat=current_lat,
+            current_lon=current_lon,
+        )
+
+        status_boost = 0.15 if item.status == InboxStatus.PENDING else 0.0
+        error_boost = 0.25 if item.last_processing_error else 0.0
+        merge_boost = 0.1 if isinstance(item.metadata_json, dict) and item.metadata_json.get("merge_suggestion") else 0.0
+
+        score = (
+            0.15 * recency
+            + 0.12 * frequency
+            + 0.09 * type_score
+            + 0.07 * folder_score
+            + 0.20 * metadata_score
+            + 0.32 * location_score
+            + status_boost
+            + error_boost
+            + merge_boost
+        )
+        factors = {
+            "recency": round(recency, 4),
+            "frequency": round(frequency, 4),
+            "type": round(type_score, 4),
+            "target_folder": round(folder_score, 4),
+            "metadata": round(metadata_score, 4),
+            "location": round(location_score, 4),
+            "distance_km": round(location_distance_km, 2) if location_distance_km is not None else None,
+            "status_boost": round(status_boost, 4),
+            "error_boost": round(error_boost, 4),
+            "merge_boost": round(merge_boost, 4),
+        }
+        return score, factors
+
+    def _review_recency_score(self, created_at: datetime, *, now: datetime) -> float:
+        value = created_at
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        age_days = max(0.0, (now - value).total_seconds() / 86400.0)
+
+        # Ventana principal de revision: entre 1 y 14 dias.
+        if age_days < 1:
+            return 0.55
+        if age_days <= 14:
+            return 1.0
+        if age_days <= 30:
+            # Inicio de decaimiento suave tras la ventana principal.
+            progress = (age_days - 14) / 16.0
+            return 1.0 - (0.35 * progress)  # 1.00 -> 0.65
+        if age_days <= 60:
+            progress = (age_days - 30) / 30.0
+            return 0.65 - (0.25 * progress)  # 0.65 -> 0.40
+        if age_days <= 120:
+            progress = (age_days - 60) / 60.0
+            return 0.40 - (0.20 * progress)  # 0.40 -> 0.20
+        return 0.08
+
+    def _review_type_score(self, item_type: InboxItemType) -> float:
+        scores = {
+            InboxItemType.TEXT: 1.0,
+            InboxItemType.PDF: 0.9,
+            InboxItemType.YOUTUBE: 0.86,
+            InboxItemType.WEB: 0.78,
+            InboxItemType.IMAGE: 0.74,
+        }
+        return scores.get(item_type, 0.7)
+
+    def _review_folder_score(self, item: InboxItem, directory_name_by_id: dict[int, str]) -> float:
+        if item.directory_id is None:
+            return 1.0
+        folder_name = (directory_name_by_id.get(item.directory_id) or "").strip().lower()
+        if not folder_name:
+            return 0.55
+
+        by_type = {
+            InboxItemType.TEXT: {"trabajo", "personal"},
+            InboxItemType.PDF: {"documentos", "trabajo"},
+            InboxItemType.YOUTUBE: {"aprendizaje", "trabajo", "documentos"},
+            InboxItemType.WEB: {"trabajo", "documentos"},
+            InboxItemType.IMAGE: {"documentos", "personal"},
+        }
+        preferred = by_type.get(item.item_type, set())
+        if folder_name in preferred:
+            return 0.92
+        return 0.5
+
+    def _review_metadata_score(self, item: InboxItem) -> float:
+        score = 0.0
+        has_title = bool((item.title or "").strip())
+        has_content = bool((item.content or "").strip())
+        has_preview = bool((item.preview_base64 or "").strip())
+        has_url = bool((item.url or "").strip())
+        has_favicon = bool((item.favicon_base64 or "").strip())
+        has_mime = bool((item.mime_type or "").strip())
+
+        if has_title:
+            score += 0.18
+        if has_content:
+            score += 0.18
+        if has_preview:
+            score += 0.14
+        if has_url:
+            score += 0.10
+        if has_favicon:
+            score += 0.06
+        if has_mime:
+            score += 0.06
+
+        metadata = item.metadata_json if isinstance(item.metadata_json, dict) else {}
+        if metadata:
+            score += min(0.28, 0.05 * len([k for k, v in metadata.items() if v not in (None, "", [], {})]))
+            for key in (
+                "video_id",
+                "channel_name",
+                "thumbnail_url",
+                "og_title",
+                "og_description",
+                "pdf_title",
+                "image_title",
+            ):
+                if metadata.get(key):
+                    score += 0.02
+
+        return max(0.0, min(1.0, score))
+
+    def _review_location_score(
+        self,
+        item: InboxItem,
+        *,
+        current_lat: float | None = None,
+        current_lon: float | None = None,
+    ) -> tuple[float, float | None]:
+        if item.location_lat is None or item.location_lon is None:
+            return 0.0, None
+
+        if current_lat is None or current_lon is None:
+            # Tiene geoposición pero no hay contexto del usuario.
+            return 0.5, None
+
+        distance = distance_km(current_lat, current_lon, item.location_lat, item.location_lon)
+        if distance <= 2:
+            return 1.0, distance
+        if distance <= 10:
+            return 0.92, distance
+        if distance <= 25:
+            return 0.82, distance
+        if distance <= 50:
+            return 0.72, distance
+        if distance <= 120:
+            return 0.62, distance
+        if distance <= 250:
+            return 0.42, distance
+        return 0.12, distance

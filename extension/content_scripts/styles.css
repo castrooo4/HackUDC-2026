@@ -1,4 +1,4 @@
-/* 1. Definimos nuestra zona interactiva (Sirve para YouTube y Google) */
+/* Interactive zones */
 .remit-hover-zone {
   position: relative !important;
 }
@@ -8,18 +8,16 @@
   display: block !important;
 }
 
-/* 2. Estilo base del botón (Pensado por defecto para YouTube) */
+/* Generic save button (YouTube/Web) */
 .remit-save-btn {
   position: absolute !important;
   top: 8px !important;
-  /* Bajito para no tapar los subtítulos de YT */
   left: 8px !important;
   z-index: 30 !important;
 
-  /* Diseño oscuro tipo YouTube */
-  background-color: rgba(0, 0, 0, 0.8) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(180deg, rgba(24, 33, 29, 0.96), rgba(12, 18, 15, 0.94)) !important;
+  color: #d7efe0 !important;
+  border: 1px solid rgba(70, 211, 126, 0.68) !important;
   border-radius: 50% !important;
   width: 36px !important;
   height: 36px !important;
@@ -29,13 +27,13 @@
   align-items: center !important;
   justify-content: center !important;
 
-  /* Oculto por defecto */
   opacity: 0 !important;
   pointer-events: none !important;
-  transition: opacity 0.2s ease, transform 0.1s ease !important;
+  transition: opacity 0.2s ease, transform 0.1s ease, background 0.2s ease !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(70, 211, 126, 0.16) inset !important;
 }
 
-/* 3. Sobrescribimos el diseño SOLO para Google */
+/* Google variant */
 .remit-google-btn {
   top: 6px !important;
   right: 6px !important;
@@ -43,53 +41,47 @@
   width: 30px !important;
   height: 30px !important;
   font-size: 14px !important;
-  /* Lo metemos 15px hacia ADENTRO para evitar que Google lo recorte */
 
-  background-color: #f1f3f4 !important;
-  border: 1px solid #dadce0 !important;
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3) !important;
-  color: black !important;
-  /* Para que resalte el emoji */
+  background: linear-gradient(180deg, rgba(24, 33, 29, 0.96), rgba(12, 18, 15, 0.94)) !important;
+  border: 1px solid rgba(70, 211, 126, 0.62) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35) !important;
+  color: #d7efe0 !important;
 }
 
 .remit-google-anchor {
   position: relative !important;
 }
 
-/* 4. Mostrar el botón SOLO cuando el ratón pasa por nuestra zona */
 .remit-hover-zone:hover .remit-save-btn {
   opacity: 1 !important;
   pointer-events: auto !important;
 }
 
-/* 5. Efectos al pasar el ratón por el propio botón */
 .remit-save-btn:hover {
   transform: scale(1.15) !important;
-  background-color: rgba(0, 0, 0, 1) !important;
+  background: linear-gradient(180deg, rgba(30, 42, 36, 0.98), rgba(14, 21, 17, 0.96)) !important;
+  border-color: rgba(70, 211, 126, 0.9) !important;
 }
 
 .remit-google-btn:hover {
-  background-color: #e8eaed !important;
-  /* Un gris un poco más oscuro para Google */
+  background: linear-gradient(180deg, rgba(30, 42, 36, 0.98), rgba(14, 21, 17, 0.96)) !important;
 }
 
-/* --- NOTIFICACIÓN TOAST UNIVERSAL --- */
+/* Toast */
 .remit-toast {
   position: fixed !important;
   bottom: 20px !important;
   right: 20px !important;
-  background-color: #4CAF50 !important;
+  background-color: #4caf50 !important;
   color: white !important;
   padding: 12px 24px !important;
   border-radius: 8px !important;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
   font-size: 14px !important;
   font-weight: bold !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   z-index: 2147483647 !important;
-  /* El nivel más alto posible para que nada lo tape */
 
-  /* Animación de entrada */
   opacity: 0 !important;
   transform: translateY(20px) !important;
   transition: opacity 0.3s ease, transform 0.3s ease !important;
@@ -101,16 +93,15 @@
   transform: translateY(0) !important;
 }
 
-/* --- BOTÓN DENTRO DEL REPRODUCTOR DE YOUTUBE --- */
+/* Player button (YouTube watch page) */
 .remit-player-btn {
-  background-color: #272727 !important;
-  /* Color gris oscuro nativo de YouTube */
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(180deg, rgba(24, 33, 29, 0.96), rgba(12, 18, 15, 0.94)) !important;
+  color: #d7efe0 !important;
+  border: 1px solid rgba(70, 211, 126, 0.68) !important;
   border-radius: 18px !important;
   padding: 0 16px !important;
   height: 36px !important;
-  font-family: 'Roboto', 'Arial', sans-serif !important;
+  font-family: "Roboto", "Arial", sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
   cursor: pointer !important;
@@ -118,24 +109,25 @@
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  gap: 8px !important;
   transition: background 0.2s !important;
   white-space: nowrap !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.42) !important;
 }
 
 .remit-player-btn:hover {
-  background-color: #3f3f3f !important;
+  background: linear-gradient(180deg, rgba(30, 42, 36, 0.98), rgba(14, 21, 17, 0.96)) !important;
+  border-color: rgba(70, 211, 126, 0.9) !important;
 }
 
-/* --- BOTÓN FLOTANTE PARA YOUTUBE SHORTS (VERSIÓN FORZADA) --- */
+/* Shorts floating button */
 .remit-shorts-btn {
   position: absolute !important;
   top: 20px !important;
   right: 60px !important;
-  /* Lo movemos un poco a la izquierda para que no choque con los botones de YouTube */
-  background-color: #4CAF50 !important;
-  /* Verde Remit para que resalte */
-  color: white !important;
-  border: 2px solid white !important;
+  background: linear-gradient(180deg, rgba(24, 33, 29, 0.98), rgba(12, 18, 15, 0.96)) !important;
+  color: #d7efe0 !important;
+  border: 2px solid rgba(70, 211, 126, 0.9) !important;
   border-radius: 50% !important;
   width: 50px !important;
   height: 50px !important;
@@ -145,8 +137,7 @@
   align-items: center !important;
   justify-content: center !important;
   z-index: 999999 !important;
-  /* Máxima prioridad visual */
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
   transition: transform 0.2s !important;
 }
 
@@ -154,36 +145,32 @@
   transform: scale(1.1) !important;
 }
 
-
-/* --- WIDGET FLOTANTE UNIVERSAL (TODAS LAS WEBS) --- */
+/* Universal widget */
 .remit-universal-widget {
   position: fixed !important;
   bottom: 20px !important;
   left: 20px !important;
-  /* Lo ponemos a la izquierda para no pisar el Toast */
-  background-color: #1a1a1a !important;
-  color: white !important;
-  border: 2px solid #4CAF50 !important;
+  background: linear-gradient(180deg, rgba(24, 33, 29, 0.96), rgba(12, 18, 15, 0.94)) !important;
+  color: #d7efe0 !important;
+  border: 2px solid rgba(70, 211, 126, 0.85) !important;
   border-radius: 50px !important;
   padding: 10px 14px !important;
-  font-family: 'Segoe UI', Tahoma, sans-serif !important;
+  font-family: "Segoe UI", Tahoma, sans-serif !important;
   font-size: 16px !important;
   cursor: pointer !important;
   z-index: 2147483646 !important;
-  /* Un punto por debajo del Toast */
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
   transition: all 0.3s ease !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
   opacity: 0.6 !important;
-  /* Semitransparente para no molestar */
 }
 
 .remit-universal-widget:hover {
   opacity: 1 !important;
   transform: translateY(-3px) !important;
-  box-shadow: 0 6px 14px rgba(76, 175, 80, 0.4) !important;
+  box-shadow: 0 6px 14px rgba(70, 211, 126, 0.34) !important;
 }
 
 .remit-widget-text {
@@ -191,18 +178,35 @@
   font-weight: bold !important;
   white-space: nowrap !important;
   display: none;
-  /* Oculto por defecto */
 }
 
-/* Al hacer hover en el botón, mostramos el texto */
 .remit-universal-widget:hover .remit-widget-text {
   display: inline-block !important;
 }
 
-/* Variante roja para errores de autenticación */
 .remit-toast-error {
   background-color: #f44336 !important;
-  /* Rojo alerta */
   box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4) !important;
+}
+
+.remit-btn-icon {
+  width: 18px !important;
+  height: 18px !important;
+  object-fit: contain !important;
+  border-radius: 4px !important;
+  display: block !important;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45)) saturate(1.1) contrast(1.06) !important;
+}
+
+.remit-check-icon {
+  font-size: 16px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  color: #46d37e !important;
+}
+
+.remit-widget-icon {
+  width: 20px !important;
+  height: 20px !important;
 }
 

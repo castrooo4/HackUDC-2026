@@ -1,6 +1,11 @@
-﻿const REMIT_RECO_PANEL_ID = "remit-youtube-reco-panel";
+const REMIT_RECO_PANEL_ID = "remit-youtube-reco-panel";
 let lastRequestedVideoId = null;
 let isRequestInFlight = false;
+const REMIT_LOGO_URL = chrome.runtime.getURL("content_scripts/remit-logo.png");
+
+function remitIconMarkup(size = 16) {
+  return `<img src="${REMIT_LOGO_URL}" alt="Remit" class="remit-btn-icon" style="width:${size}px;height:${size}px" />`;
+}
 
 function extractVideoId(url) {
   if (!url) return null;
@@ -123,7 +128,7 @@ function upsertRecommendationsPanel(recommendations) {
 
   if (!Array.isArray(recommendations) || recommendations.length === 0) {
     const empty = document.createElement("div");
-    empty.textContent = "No hay recomendaciones guardadas todavía.";
+    empty.textContent = "No hay recomendaciones guardadas todavia.";
     empty.style.cssText = "font-size:12px;opacity:.75;padding:6px 2px";
     panel.appendChild(empty);
     return;
@@ -156,7 +161,7 @@ function fetchAndRenderRecommendations() {
 
       lastRequestedVideoId = videoId;
       upsertRecommendationsPanel(response.recommendations || []);
-    }
+    },
   );
 }
 
@@ -169,7 +174,7 @@ function injectRemitButton(linkElement) {
 
   const btn = document.createElement("button");
   btn.className = "remit-save-btn";
-  btn.innerHTML = "🧠";
+  btn.innerHTML = remitIconMarkup(16);
   btn.title = "Guardar en Remit";
 
   btn.addEventListener("click", (event) => {
@@ -177,9 +182,9 @@ function injectRemitButton(linkElement) {
     event.stopPropagation();
     chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: linkElement.href });
 
-    btn.innerHTML = "✅";
+    btn.innerHTML = '<span class="remit-check-icon">✓</span>';
     setTimeout(() => {
-      btn.innerHTML = "🧠";
+      btn.innerHTML = remitIconMarkup(16);
     }, 2000);
   });
 
@@ -194,16 +199,16 @@ function injectPlayerButton() {
 
   const btn = document.createElement("button");
   btn.className = "remit-player-btn";
-  btn.innerHTML = "🧠 Guardar video";
+  btn.innerHTML = `${remitIconMarkup(14)}<span>Guardar video</span>`;
   btn.title = "Guardar en tu Inbox de Remit";
 
   btn.addEventListener("click", (event) => {
     event.preventDefault();
     chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: window.location.href });
 
-    btn.innerHTML = "✅ Guardado";
+    btn.innerHTML = '<span class="remit-check-icon">✓</span><span>Guardado</span>';
     setTimeout(() => {
-      btn.innerHTML = "🧠 Guardar video";
+      btn.innerHTML = `${remitIconMarkup(14)}<span>Guardar video</span>`;
     }, 2000);
   });
 
@@ -222,7 +227,7 @@ function injectShortsButton() {
 
     const btn = document.createElement("button");
     btn.className = "remit-shorts-btn";
-    btn.innerHTML = "🧠";
+    btn.innerHTML = remitIconMarkup(22);
     btn.title = "Guardar en Remit";
 
     btn.addEventListener("click", (event) => {
@@ -230,9 +235,9 @@ function injectShortsButton() {
       event.stopPropagation();
       chrome.runtime.sendMessage({ action: "SAVE_INBOX", url: window.location.href });
 
-      btn.innerHTML = "✅";
+      btn.innerHTML = '<span class="remit-check-icon">✓</span>';
       setTimeout(() => {
-        btn.innerHTML = "🧠";
+        btn.innerHTML = remitIconMarkup(22);
       }, 2000);
     });
 

@@ -27,6 +27,18 @@ export const deleteInboxItem = (id) =>
 export const getPendingInbox = () => apiFetch("/inbox?status=PROCESSED");
 export const getOrganizedInbox = () => apiFetch("/inbox?status=ORGANIZED");
 export const getDirectoriesTree = () => apiFetch("/directories/tree");
+export const getTopReviewInbox = (limit = 10, location = null) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (
+    location &&
+    Number.isFinite(location.lat) &&
+    Number.isFinite(location.lon)
+  ) {
+    params.set("current_lat", String(location.lat));
+    params.set("current_lon", String(location.lon));
+  }
+  return apiFetch(`/inbox/review/top?${params.toString()}`);
+};
 
 export const confirmOrganization = (itemId, option) => {
   let payload = {};

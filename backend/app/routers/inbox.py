@@ -8,6 +8,7 @@ from app.schemas.inbox import (
     InboxConfirmOrganization,
     InboxCityRead,
     InboxCreate,
+    InboxPriorityReviewRead,
     MergeApplyRequest,
     MergeHistoryRead,
     MergeRejectRequest,
@@ -79,6 +80,32 @@ def list_inbox_cities(
 ):
     rows = inbox_service.list_cities(session, user_id=current_user.id)
     return [InboxCityRead(city=city_name, item_count=count) for city_name, count in rows]
+
+
+@router.get(
+    "/review/top",
+    response_model=list[InboxPriorityReviewRead],
+    summary="Top prioridad para revisar",
+)
+def list_top_review_items(
+    limit: int = Query(default=10, ge=1, le=100),
+    current_lat: float | None = Query(default=None, ge=-90, le=90),
+    current_lon: float | None = Query(default=None, ge=-180, le=180),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    if (current_lat is None) != (current_lon is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="current_lat y current_lon deben enviarse juntos",
+        )
+    return inbox_service.list_top_priority_review(
+        session,
+        user_id=current_user.id,
+        limit=limit,
+        current_lat=current_lat,
+        current_lon=current_lon,
+    )
 
 
 @router.get(

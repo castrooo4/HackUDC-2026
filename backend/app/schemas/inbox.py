@@ -220,6 +220,12 @@ class YouTubeRecommendationRead(BaseModel):
     )
 
 
+class InboxPriorityReviewRead(BaseModel):
+    item: InboxRead
+    priority_score: float = Field(description="Score de prioridad para revision")
+    factors: dict = Field(default_factory=dict, description="Factores usados en el score")
+
+
 class TextMergeSuggestionRead(BaseModel):
     source_item: InboxRead
     target_item: InboxRead
