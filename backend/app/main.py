@@ -8,11 +8,12 @@ from app.routers.router import api_router
 
 def get_application() -> FastAPI:
     app = FastAPI(title=settings.APP_NAME, version="1.0.0")
+    origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()]
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
+        allow_origins=origins or ["*"],
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )

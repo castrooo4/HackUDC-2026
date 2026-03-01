@@ -13,7 +13,9 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://localhost:8000/*"
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "https://remit-db.mintos.space/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -53,7 +55,8 @@
     {
       "matches": [
         "http://localhost:5173/*",
-        "http://127.0.0.1:5173/*"
+        "http://127.0.0.1:5173/*",
+        "http://remit.mintos.space/*"
       ],
       "js": [
         "content_scripts/sync.js"

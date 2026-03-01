@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+﻿const API_URL = window.REMIT_CONFIG?.API_BASE_URL ?? "https://remit-db.mintos.space";
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: "access_token",
@@ -212,7 +212,7 @@ function bindSaveActions() {
   });
 
   el("openWebBtn").addEventListener("click", () => {
-    chrome.tabs.create({ url: "http://localhost:5173" });
+    chrome.tabs.create({ url: window.REMIT_CONFIG?.WEB_APP_URL ?? "http://localhost:5173" });
     window.close();
   });
 
@@ -250,3 +250,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindSaveActions();
   bindEnterShortcuts();
 });
+

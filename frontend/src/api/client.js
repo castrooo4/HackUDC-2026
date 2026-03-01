@@ -1,5 +1,4 @@
-const DEFAULT_API_BASE = import.meta.env.DEV ? "http://localhost:8000" : "/api";
-const API_BASE = (import.meta.env.VITE_API_BASE ?? DEFAULT_API_BASE).replace(/\/+$/, "");
+import { ENV } from "../config/env";
 
 export async function apiFetch(path, options = {}) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -15,7 +14,7 @@ export async function apiFetch(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${API_BASE}${normalizedPath}`, {
+  const res = await fetch(`${ENV.API_BASE}${normalizedPath}`, {
     ...options,
     headers,
   });

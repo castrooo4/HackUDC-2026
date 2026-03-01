@@ -42,6 +42,13 @@ npm install
 npm run dev
 ```
 
+Si quieres cambiar la API:
+```powershell
+Copy-Item .env.example .env
+# editar VITE_API_BASE
+npm run dev
+```
+
 Frontend en:
 - `http://localhost:5173`
 
@@ -51,6 +58,14 @@ Frontend en:
 3. Pulsa **Load unpacked**
 4. Selecciona la carpeta `extension/`
 5. Si cambias código: pulsa **Reload** en la extensión
+
+Config centralizada de la extensión:
+- archivo: `extension/config.js`
+- claves:
+  - `API_BASE_URL`
+  - `GEO_IP_URL`
+  - `WEB_APP_URL`
+  - `ACTIVE_ENV` (`local` o `production`)
 
 ## Flujo mínimo de prueba
 1. Arranca backend
