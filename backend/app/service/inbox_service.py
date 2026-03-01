@@ -108,7 +108,17 @@ class InboxService:
             duplicate.save_count += 1
             duplicate.created_at = now
             duplicate.processing_attempts = max(duplicate.processing_attempts, attempts)
-            duplicate.last_processing_error = None
+            if duplicate.status == InboxStatus.PENDING and processed is not None:
+                duplicate.title = processed.title
+                duplicate.content = processed.content
+                duplicate.content_hash = content_hash
+                duplicate.dedupe_key = dedupe_key
+                duplicate.url = processed.url
+                duplicate.preview_base64 = processed.preview_base64
+                duplicate.favicon_base64 = processed.favicon_base64
+                duplicate.mime_type = processed.mime_type
+                duplicate.metadata_json = processed.metadata_json
+                duplicate.last_processing_error = None
             if location_lat is not None and location_lon is not None:
                 duplicate.location_lat = location_lat
                 duplicate.location_lon = location_lon
@@ -116,6 +126,9 @@ class InboxService:
             session.add(duplicate)
             session.commit()
             session.refresh(duplicate)
+            if duplicate.status == InboxStatus.PENDING and processed is not None:
+                duplicate = self.directory_service.suggest_directory_for_item(session, user_id, duplicate)
+                self._attach_best_merge_suggestion(session, user_id=user_id, item=duplicate)
             return duplicate
 
         item = InboxItem(

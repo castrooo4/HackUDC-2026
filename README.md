@@ -33,6 +33,7 @@ Variables importantes (`backend/.env`):
 - `CORS_ORIGINS` (incluye localhost:5173 para frontend)
 - `JWT_SECRET_KEY`
 - `GROQ_API_KEY` (si usas clasificación con LLM)
+- `ALLOW_INSECURE_SSL_FETCH` (ponlo en `true` solo si necesitas descargar URLs con certificado roto)
 
 ## 2) Frontend
 ```powershell

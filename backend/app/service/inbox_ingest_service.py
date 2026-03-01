@@ -7,6 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from app.classes.ingestion_result import IngestionResult
+from app.config import settings
 from app.models.inbox_item import InboxItemType
 from app.schemas.inbox import InboxCreate
 from app.utils.preview import (
@@ -269,13 +270,22 @@ class InboxIngestionService:
             base_mime, raw = decode_base64_payload(payload.file_base64)
             return payload.mime_type or base_mime, raw
         if payload.url:
-            response = requests.get(payload.url, timeout=self.timeout_seconds)
+            response = self._safe_get(payload.url)
             response.raise_for_status()
             mime_type = payload.mime_type or response.headers.get("content-type", "").split(";")[0]
             if not mime_type:
                 mime_type = guess_mime_type_from_url(payload.url)
             return mime_type, response.content
         return payload.mime_type, b""
+
+    def _safe_get(self, url: str) -> requests.Response:
+        try:
+            return requests.get(url, timeout=self.timeout_seconds)
+        except requests.exceptions.SSLError:
+            if not settings.ALLOW_INSECURE_SSL_FETCH:
+                raise
+            # Optional fallback for hosts with broken certificate chains.
+            return requests.get(url, timeout=self.timeout_seconds, verify=False)
 
     def _extract_youtube_video_id(self, url: str) -> str | None:
         parsed = urlparse(url)

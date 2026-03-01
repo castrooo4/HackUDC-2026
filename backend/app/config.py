@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     GEOCODER_FALLBACK_BASE_URL: str = "https://api.bigdatacloud.net/data/reverse-geocode-client"
     GEOCODER_TIMEOUT_SECONDS: float = 5.0
     GEOCODER_USER_AGENT: str = "kelea-digital-brain/1.0"
+    ALLOW_INSECURE_SSL_FETCH: bool = False
 
 
 settings = Settings()
