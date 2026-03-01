@@ -1,4 +1,5 @@
 from datetime import datetime
+from operator import is_
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -46,12 +47,16 @@ class InboxCreate(BaseModel):
         }
     )
 
-    source: str = Field(default="extension", description="Origen de la captura. Ej: extension, web")
+    source: str = Field(
+        default="extension", description="Origen de la captura. Ej: extension, web"
+    )
     item_type: InboxItemType = Field(
         default=InboxItemType.TEXT,
         description="Tipo de entrada: TEXT, YOUTUBE, IMAGE, PDF, WEB",
     )
-    title: Optional[str] = Field(default=None, description="Titulo opcional. Si no llega, se autogenera")
+    title: Optional[str] = Field(
+        default=None, description="Titulo opcional. Si no llega, se autogenera"
+    )
     content: Optional[str] = Field(
         default=None,
         description="Texto principal. Obligatorio para TEXT. Opcional para otros tipos",
@@ -180,8 +185,12 @@ class InboxRead(BaseModel):
     processing_attempts: int = 0
     last_processing_error: Optional[str] = None
     url: Optional[str]
-    location_lat: Optional[float] = Field(default=None, description="Latitud original capturada")
-    location_lon: Optional[float] = Field(default=None, description="Longitud original capturada")
+    location_lat: Optional[float] = Field(
+        default=None, description="Latitud original capturada"
+    )
+    location_lon: Optional[float] = Field(
+        default=None, description="Longitud original capturada"
+    )
     location_city: Optional[str] = Field(
         default=None,
         description="Ciudad inferida automaticamente desde location_lat/location_lon",
@@ -191,6 +200,7 @@ class InboxRead(BaseModel):
     mime_type: Optional[str]
     metadata_json: Optional[dict]
     status: InboxStatus
+    is_pinned: bool = False
 
 
 class InboxRecommendationRead(BaseModel):
@@ -205,13 +215,17 @@ class InboxCityRead(BaseModel):
 
 class YouTubeRecommendationRead(BaseModel):
     item: InboxRead
-    score: float = Field(description="Puntuacion de relevancia para ordenar recomendaciones")
+    score: float = Field(
+        description="Puntuacion de relevancia para ordenar recomendaciones"
+    )
 
 
 class TextMergeSuggestionRead(BaseModel):
     source_item: InboxRead
     target_item: InboxRead
-    similarity_score: float = Field(description="Similitud entre 0 y 1 para sugerencia de fusion")
+    similarity_score: float = Field(
+        description="Similitud entre 0 y 1 para sugerencia de fusion"
+    )
     preview_markdown: str
 
 
@@ -246,6 +260,8 @@ class InboxUpdate(BaseModel):
     location_lon: Optional[float] = None
     file_base64: Optional[str] = None
     mime_type: Optional[str] = None
+
+    is_pinned: Optional[bool] = None
 
     @field_validator("title")
     @classmethod
@@ -318,6 +334,7 @@ class InboxUpdate(BaseModel):
                 self.location_lon,
                 self.file_base64,
                 self.mime_type,
+                self.is_pinned,
             ]
         ):
             raise ValueError("debes enviar al menos un campo para actualizar")
