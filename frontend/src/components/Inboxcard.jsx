@@ -78,9 +78,10 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
           type="button"
           style={{
             ...deleteBtnStyle,
-            opacity: isHovered ? 1 : 0,
-            transform: isHovered ? "translateY(0)" : "translateY(-4px)",
-            pointerEvents: isHovered ? "auto" : "none",
+            // En móvil ( < 768px) siempre visible con opacidad 0.8, en escritorio solo al hacer hover
+            opacity: window.innerWidth < 768 ? 0.8 : (isHovered ? 1 : 0),
+            transform: window.innerWidth < 768 ? "translateY(0)" : (isHovered ? "translateY(0)" : "translateY(-4px)"),
+            pointerEvents: "auto", // Siempre clickeable
           }}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -185,7 +186,8 @@ const videoContainerStyle = {
 
 const imageStyle = {
   width: "100%",
-  height: "auto",
+  height: window.innerWidth < 768 ? "220px" : "auto",
+  objectFit: "cover",
   display: "block",
 };
 

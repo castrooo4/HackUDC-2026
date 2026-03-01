@@ -9,11 +9,10 @@
   transition: all 0.3s ease;
 }
 
-/* Variables para el Modo Claro */
 .light-mode {
   --bg0: #f0f4f1;
   --bg1: #e0e8e2;
-  --neon: #2d8a52; /* Un verde más oscuro para legibilidad */
+  --neon: #2d8a52;
   --text: #1a1f1c;
   --muted: rgba(26, 31, 28, .65);
   --card-bg: rgba(255, 255, 255, 0.8);
@@ -26,11 +25,10 @@ body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; 
 
 .bg {
   position: absolute; inset: 0;
-  /* El degradado también debe suavizarse en modo claro */
   background: 
     radial-gradient(900px 500px at 30% 70%, var(--neon), transparent 70%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
-  opacity: 0.4; /* Menos intenso en modo claro */
+  opacity: 0.4;
 }
 
 .container{
@@ -56,25 +54,15 @@ body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; 
   transition: margin-left 0.3s ease;
 }
 
-/* Ajuste para móviles (puedes esconder el sidebar y usar un botón hamburguesa luego) */
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 0;
-  }
-}
-
-/* Para Chrome, Safari y nuevas versiones de Edge */
 .sidebar-container::-webkit-scrollbar {
   display: none;
 }
 
-/* Para Firefox */
 .sidebar-container {
   scrollbar-width: none;
-  -ms-overflow-style: none; /* IE y Edge antiguo */
+  -ms-overflow-style: none;
 }
 
-/* Leaflet custom pin: evita iconos rotos por assets */
 .remit-map-pin-wrapper {
   background: transparent !important;
   border: none !important;
@@ -100,4 +88,60 @@ body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; 
   position: absolute;
   top: 5px;
   left: 5px;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
+
+  .sidebarStyle, [style*="width: 240px"] { 
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding-bottom: 90px;
+  }
+
+  [style*="bottom: 30"] {
+    bottom: 90px !important;
+    right: 20px !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  div[style*="overflowX: auto"] {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  }
+
+  .container {
+    padding: 10px 16px 100px !important;
+    overflow-x: hidden;
+  }
+  
+  div[style*="break-inside: avoid"] {
+    margin-bottom: 16px !important;
+  }
+
+  .bandeja-clasificacion p {
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+}
+
+div[style*="overflowX: auto"]::-webkit-scrollbar {
+  display: none;
+}
+
+button[style*="confirmAllBtnStyle"] {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
 }

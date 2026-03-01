@@ -56,15 +56,16 @@ export default function CardGrid({ items, setItems, onOpen, onDelete, onPin }) {
 }
 
 const masonryContainerStyle = {
-  columnCount: "auto",
-  columnWidth: "320px",
-  columnGap: "25px",
+  columnCount: window.innerWidth > 768 ? "auto" : 1,
+  columnWidth: window.innerWidth > 768 ? "320px" : "100%", 
+  columnGap: window.innerWidth > 768 ? "25px" : "0px",
   width: "100%",
-  padding: "20px 0",
+  padding: window.innerWidth > 768 ? "20px 0" : "10px 0",
 };
 
 const itemWrapperStyle = {
   breakInside: "avoid",
+  WebkitBreakInside: "avoid",
   marginBottom: "25px",
   display: "block",
   width: "100%",

@@ -1,7 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
-// 1. Añadimos updateInboxItem a las importaciones
 import { listInbox, createInboxItem, getInboxItem, deleteInboxItem, updateInboxItem } from "./api/inbox";
 import { logout } from "./api/auth";
 import TopBar from "./components/TopBar.jsx";
@@ -17,6 +15,7 @@ import MapaView from "./views/MapaView";
 import CiudadesView from "./views/CiudadesView";
 import MergeView from "./views/MergeView";
 import { filterAndSortInboxItems } from "./utils/inboxFilters";
+import MobileNav from "./components/MobileNav.jsx";
 
 export default function App() {
   const [items, setItems] = useState([]);
@@ -108,11 +107,9 @@ export default function App() {
     }
   }
 
-  // 2. Añadimos la función handleTogglePin para la pantalla principal
   async function handleTogglePin(item) {
     const newPinnedState = !item.is_pinned;
 
-    // Actualización optimista
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, is_pinned: newPinnedState } : i))
     );
@@ -121,7 +118,6 @@ export default function App() {
       await updateInboxItem(item.id, { is_pinned: newPinnedState });
     } catch (error) {
       console.error("Error al anclar:", error);
-      // Revertir en caso de error
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, is_pinned: !newPinnedState } : i))
       );
@@ -167,7 +163,7 @@ export default function App() {
                         setItems={setItems}
                         onOpen={openDetail}
                         onDelete={handleDeleteItem}
-                        onPin={handleTogglePin} // 3. Pasamos la función al CardGrid
+                        onPin={handleTogglePin}
                       />
                     )}
                   </>
@@ -183,6 +179,10 @@ export default function App() {
         </div>
 
         <button onClick={() => setCreateOpen(true)} style={fabStyle}>+</button>
+
+        <div className="mobile-only">
+          <MobileNav />
+        </div>
 
         <CreateItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
 

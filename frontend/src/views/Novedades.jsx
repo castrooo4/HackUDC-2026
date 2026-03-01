@@ -17,15 +17,14 @@ export default function Novedades({ onOpenDetail }) {
 
     setIsConfirmingAll(true);
     try {
-      // Ejecutamos todas las confirmaciones en paralelo
       await Promise.all(
         pendingItems.map(item => confirmOrganization(item.id, { type: "RECOMMENDED" }))
       );
-      setPendingItems([]); // Limpiamos la lista una vez terminadas todas
+      setPendingItems([]);
       window.postMessage({ type: "REMIT_WEB_TOAST", message: "Todo organizado con éxito", toastType: "success" }, "*");
     } catch (err) {
       alert(`Error al organizar algunos elementos: ${err.message}`);
-      fetchData(); // Refrescamos para ver qué quedó pendiente
+      fetchData();
     } finally {
       setIsConfirmingAll(false);
     }
@@ -128,9 +127,11 @@ export default function Novedades({ onOpenDetail }) {
         </div>
       </div>
 
-      <p style={{ opacity: 0.7, marginBottom: "30px" }}>
-        Estos elementos ya tienen una carpeta recomendada. Confirma o cambia el destino para moverlos al inbox principal.
-      </p>
+      {window.innerWidth > 768 && (
+        <p style={{ opacity: 0.7, marginBottom: "30px" }}>
+          Estos elementos ya tienen una carpeta recomendada. Confirma o cambia el destino para moverlos al inbox principal.
+        </p>
+      )}
 
       {pendingItems.length === 0 ? (
         <div style={emptyStyle}>
@@ -214,7 +215,14 @@ export default function Novedades({ onOpenDetail }) {
 }
 
 const containerStyle = { padding: "10px 0" };
-const headerSectionStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" };
+const headerSectionStyle = { 
+  display: "flex", 
+  flexDirection: window.innerWidth < 768 ? "column" : "row",
+  justifyContent: "space-between", 
+  alignItems: window.innerWidth < 768 ? "flex-start" : "center", 
+  gap: "10px",
+  marginBottom: "20px" 
+};
 
 const loadingStyle = {
   padding: "60px",
@@ -253,7 +261,7 @@ const gridStyle = { display: "flex", flexDirection: "column", gap: "30px" };
 const cardNovedadStyle = {
   background: "rgba(20, 25, 22, 0.6)",
   border: "1px solid rgba(70, 211, 126, 0.2)",
-  padding: "25px",
+  padding: window.innerWidth < 768 ? "15px" : "25px",
   borderRadius: "30px",
   boxShadow: "0 15px 35px rgba(0,0,0,0.2)",
   transition: "all 0.3s ease",
@@ -263,10 +271,10 @@ const cardNovedadStyle = {
 
 const itemHeaderStyle = {
   display: "flex",
-  gap: "25px",
+  flexDirection: window.innerWidth < 768 ? "column-reverse" : "row",
+  gap: window.innerWidth < 768 ? "15px" : "25px",
   marginBottom: "25px",
   alignItems: "flex-start",
-  cursor: "pointer",
 };
 
 const sourceTagStyle = {
@@ -299,8 +307,8 @@ const contentPreviewStyle = {
 };
 
 const imageWrapperStyle = {
-  width: "160px",
-  height: "110px",
+  width: window.innerWidth < 768 ? "100%" : "160px",
+  height: window.innerWidth < 768 ? "200px" : "110px",
   borderRadius: "16px",
   overflow: "hidden",
   border: "1px solid rgba(70, 211, 126, 0.2)",
@@ -333,9 +341,24 @@ const btnSuggestStyle = {
   gap: "15px",
 };
 
-const bottomActionsRow = { display: "flex", gap: "12px", flexWrap: "wrap" };
-const selectWrapperStyle = { position: "relative", flex: 1, minWidth: "220px" };
-const inputWrapperStyle = { position: "relative", flex: 1, minWidth: "220px" };
+const bottomActionsRow = { 
+  display: "flex", 
+  flexDirection: window.innerWidth < 768 ? "column" : "row",
+  gap: "12px", 
+  width: "100%" 
+};
+
+const selectWrapperStyle = { 
+  position: "relative", 
+  flex: 1, 
+  width: "100%"
+};
+
+const inputWrapperStyle = { 
+  position: "relative", 
+  flex: 1, 
+  width: "100%" 
+};
 
 const selectIconStyle = {
   position: "absolute",
