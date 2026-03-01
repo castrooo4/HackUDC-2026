@@ -1,4 +1,4 @@
-﻿const API_BASE_URL = "http://127.0.0.1:8000";
+﻿const API_BASE_URL = "https://remit-db.mintos.space";
 const GEO_IP_URL = "https://get.geojs.io/v1/ip/geo.json";
 
 const ACTIONS = {

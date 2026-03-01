@@ -13,7 +13,7 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://localhost:8000/*"
+    "https://remit-db.mintos.space/*"
   ],
   "background": {
     "service_worker": "background.js"

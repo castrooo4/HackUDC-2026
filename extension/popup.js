@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = "https://remit-db.mintos.space";
 
 const STORAGE_KEYS = {
   ACCESS_TOKEN: "access_token",

@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = import.meta.env.DEV ? "http://localhost:8000" : "/api";
+const DEFAULT_API_BASE = "https://remit-db.mintos.space";
 const API_BASE = (import.meta.env.VITE_API_BASE ?? DEFAULT_API_BASE).replace(/\/+$/, "");
 
 export async function apiFetch(path, options = {}) {
