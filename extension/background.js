@@ -1,5 +1,8 @@
-﻿const API_BASE_URL = "https://remit-db.mintos.space";
-const GEO_IP_URL = "https://get.geojs.io/v1/ip/geo.json";
+﻿importScripts("config.js");
+
+const API_BASE_URL = self.REMIT_CONFIG?.API_BASE_URL ?? "https://remit-db.mintos.space";
+const GEO_IP_URL = self.REMIT_CONFIG?.GEO_IP_URL ?? "https://get.geojs.io/v1/ip/geo.json";
+
 
 const ACTIONS = {
   SAVE_MANUAL: "SAVE_MANUAL",
@@ -363,3 +366,4 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 });
 
 console.log("Remit background service worker ready");
+
