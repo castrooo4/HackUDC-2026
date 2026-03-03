@@ -56,7 +56,8 @@
       "matches": [
         "http://localhost:5173/*",
         "http://127.0.0.1:5173/*",
-        "http://remit.mintos.space/*"
+        "http://remit.mintos.space/*",
+        "https://remit.mintos.space/*"
       ],
       "js": [
         "content_scripts/sync.js"

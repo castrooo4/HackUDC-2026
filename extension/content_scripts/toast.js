@@ -1,4 +1,4 @@
-﻿function showRemitToast(message, type = "success") {
+function showRemitToast(message, type = "success") {
   const existing = document.getElementById("remit-toast-container");
   if (existing) existing.remove();
 
@@ -6,11 +6,11 @@
   toast.id = "remit-toast-container";
   toast.className = "remit-toast";
 
+  const safeMessage = String(message ?? "");
+  toast.textContent = type === "error" ? safeMessage : `Remit ${safeMessage}`;
+
   if (type === "error") {
     toast.classList.add("remit-toast-error");
-    toast.innerHTML = message;
-  } else {
-    toast.innerHTML = `🧠 ${message}`;
   }
 
   document.body.appendChild(toast);

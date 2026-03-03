@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     GEOCODER_TIMEOUT_SECONDS: float = 5.0
     GEOCODER_USER_AGENT: str = "kelea-digital-brain/1.0"
     ALLOW_INSECURE_SSL_FETCH: bool = False
+    INGEST_TIMEOUT_SECONDS: float = 8.0
+    INGEST_RETRY_DELAYS_SECONDS: str = "3,8,20"
 
 
 settings = Settings()

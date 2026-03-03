@@ -1,4 +1,4 @@
-﻿import { apiFetch } from "./client";
+import { apiFetch } from "./client";
 
 export const health = () => apiFetch("/health");
 export const listInbox = () => apiFetch("/inbox");
@@ -24,16 +24,13 @@ export const deleteInboxItem = (id) =>
     method: "DELETE",
   });
 
-export const getPendingInbox = () => apiFetch("/inbox?status=PROCESSED");
-export const getOrganizedInbox = () => apiFetch("/inbox?status=ORGANIZED");
+export const listProcessedInbox = () => apiFetch("/inbox?status=PROCESSED");
+export const listOrganizedInbox = () => apiFetch("/inbox?status=ORGANIZED");
 export const getDirectoriesTree = () => apiFetch("/directories/tree");
+
 export const getTopReviewInbox = (limit = 10, location = null) => {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (
-    location &&
-    Number.isFinite(location.lat) &&
-    Number.isFinite(location.lon)
-  ) {
+  if (location && Number.isFinite(location.lat) && Number.isFinite(location.lon)) {
     params.set("current_lat", String(location.lat));
     params.set("current_lon", String(location.lon));
   }
@@ -77,3 +74,7 @@ export const revertMergeHistory = (historyId) =>
     method: "POST",
     body: JSON.stringify({}),
   });
+
+// Backward-compatible aliases to avoid breaking old imports.
+export const getPendingInbox = listProcessedInbox;
+export const getOrganizedInbox = listOrganizedInbox;

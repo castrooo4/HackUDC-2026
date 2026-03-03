@@ -1,11 +1,14 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 
 import { login, register as registerApi } from "../api/auth";
 import logoImg from "../assets/remit-logo.png";
 
+const PASSWORD_MIN_LENGTH = 8;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function LoginForm({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,11 +23,24 @@ export default function LoginForm({ onLoginSuccess }) {
 
     try {
       if (isRegister) {
-        await registerApi(username, email, password);
+        if (!EMAIL_REGEX.test(email)) {
+          throw new Error("Introduce un email valido");
+        }
+        if (password.length < PASSWORD_MIN_LENGTH) {
+          throw new Error(`La contrasena debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
+        }
+        if (fullName.trim().length < 2) {
+          throw new Error("El nombre debe tener al menos 2 caracteres");
+        }
+        await registerApi(fullName, email, password);
         setSuccess("Cuenta creada. Ya puedes iniciar sesion.");
         setIsRegister(false);
+        setFullName("");
       } else {
-        await login(username, password);
+        if (!EMAIL_REGEX.test(email)) {
+          throw new Error("Introduce un email valido");
+        }
+        await login(email, password);
         onLoginSuccess();
       }
     } catch (err) {
@@ -52,25 +68,25 @@ export default function LoginForm({ onLoginSuccess }) {
         {error && <div style={errorStyle}>{error}</div>}
         {success && <div style={successStyle}>{success}</div>}
 
-        <input
-          type="text"
-          placeholder="Usuario"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={inputStyle}
-          required
-        />
-
         {isRegister && (
           <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="Nombre completo"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             style={inputStyle}
             required
           />
         )}
+
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={inputStyle}
+          required
+        />
 
         <input
           type="password"

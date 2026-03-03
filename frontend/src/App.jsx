@@ -77,8 +77,7 @@ export default function App() {
       setItems((prev) => [newItem, ...prev]);
     } catch (error) {
       console.error("Error al crear:", error);
-      const mockItem = { id: Date.now(), ...payload, status: "PENDING", created_at: new Date().toISOString() };
-      setItems((prev) => [mockItem, ...prev]);
+      alert(error?.message || "No se pudo crear el elemento");
     }
   }
 

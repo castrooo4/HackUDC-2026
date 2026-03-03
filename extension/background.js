@@ -18,6 +18,28 @@ const TOAST_TYPE = {
   ERROR: "error",
 };
 
+function parseBackendError(payload, fallbackMessage) {
+  if (typeof payload?.message === "string" && payload.message.trim()) {
+    return payload.message.trim();
+  }
+  if (typeof payload?.detail === "string" && payload.detail.trim()) {
+    return payload.detail.trim();
+  }
+  if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+    const firstError = payload.errors[0];
+    if (typeof firstError?.message === "string" && firstError.message.trim()) {
+      return firstError.message.trim();
+    }
+  }
+  if (Array.isArray(payload?.detail) && payload.detail.length > 0) {
+    const first = payload.detail[0];
+    if (typeof first?.msg === "string" && first.msg.trim()) {
+      return first.msg.trim();
+    }
+  }
+  return fallbackMessage;
+}
+
 function getStorage(keys) {
   return chrome.storage.local.get(keys);
 }
@@ -162,14 +184,23 @@ async function sendToBackend(payload) {
       return { status: "ok", message: toastMessage, item: data };
     }
 
-    if (response.status === 401) {
-      await removeStorage(["access_token"]);
-      await sendToastToActiveTab("Tu sesion ha caducado", TOAST_TYPE.ERROR);
-      return { status: "unauthorized", message: "Tu sesion ha caducado" };
+    let errorPayload = null;
+    try {
+      errorPayload = await response.json();
+    } catch (_error) {
+      errorPayload = null;
     }
 
-    await sendToastToActiveTab("Error al guardar en el cerebro", TOAST_TYPE.ERROR);
-    return { status: "error", message: "Error al guardar en el cerebro" };
+    if (response.status === 401) {
+      await removeStorage(["access_token"]);
+      const message = parseBackendError(errorPayload, "Tu sesion ha caducado");
+      await sendToastToActiveTab(message, TOAST_TYPE.ERROR);
+      return { status: "unauthorized", message };
+    }
+
+    const message = parseBackendError(errorPayload, "Error al guardar en el cerebro");
+    await sendToastToActiveTab(message, TOAST_TYPE.ERROR);
+    return { status: "error", message };
   } catch (error) {
     console.error("Remit backend error", error);
     await sendToastToActiveTab("Error de conexion con el servidor", TOAST_TYPE.ERROR);
@@ -243,12 +274,29 @@ async function getYoutubeRecommendations(payload) {
       },
     });
 
+    let errorPayload = null;
+    if (!response.ok) {
+      try {
+        errorPayload = await response.json();
+      } catch (_error) {
+        errorPayload = null;
+      }
+    }
+
     if (response.status === 401) {
       await removeStorage(["access_token"]);
-      return { status: "unauthorized", recommendations: [] };
+      return {
+        status: "unauthorized",
+        recommendations: [],
+        message: parseBackendError(errorPayload, "Tu sesion ha caducado"),
+      };
     }
     if (!response.ok) {
-      return { status: "error", recommendations: [] };
+      return {
+        status: "error",
+        recommendations: [],
+        message: parseBackendError(errorPayload, "No se pudieron obtener recomendaciones"),
+      };
     }
 
     const data = await response.json();
@@ -365,5 +413,4 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   }
 });
 
-console.log("Remit background service worker ready");
 

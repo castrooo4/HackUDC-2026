@@ -1,19 +1,31 @@
-﻿# HackUDC 2026 - Remit (Kelea Digital Brain)
+﻿# Remit - HackUDC 2026
 
-Proyecto hackathon con 3 piezas:
-- `backend/` FastAPI + SQLite
-- `frontend/` React + Vite
-- `extension/` Chrome/Opera extension
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
+![Chrome Extension](https://img.shields.io/badge/Extension-MV3-4285F4?logo=googlechrome&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 
-## Despliegue
-- App (produccion): `http://remit.mintos.space/`
+Remit es un "second brain" con tres piezas:
+- `backend/`: API FastAPI + persistencia SQLite
+- `frontend/`: aplicación React (Vite)
+- `extension/`: extensión de navegador (Chrome/Opera, Manifest V3)
+
+## Arquitectura
+- La extensión captura contenido (texto, URLs, imágenes, PDFs, YouTube).
+- El backend procesa y clasifica el contenido en el inbox.
+- El frontend muestra, filtra, organiza y revisa prioridades.
 
 ## Requisitos
-- Python 3.11+
-- Node.js 20+
+- Python `3.11+`
+- Node.js `20+`
 - Google Chrome u Opera
 
-## 1) Backend
+## Inicio rápido local
+
+### 1) Backend
 ```powershell
 cd backend
 python -m venv .venv
@@ -23,64 +35,58 @@ Copy-Item .env.example .env
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
-
-Backend disponible en:
+Backend:
 - API: `http://127.0.0.1:8000`
 - Swagger: `http://127.0.0.1:8000/docs`
 
-Variables importantes (`backend/.env`):
-- `DATABASE_URL` (por defecto sqlite local)
-- `CORS_ORIGINS` (incluye localhost:5173 para frontend)
-- `JWT_SECRET_KEY`
-- `GROQ_API_KEY` (si usas clasificación con LLM)
-- `ALLOW_INSECURE_SSL_FETCH` (ponlo en `true` solo si necesitas descargar URLs con certificado roto)
-
-## 2) Frontend
+### 2) Frontend
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
+Frontend:
+- Web: `http://127.0.0.1:5173`
 
-Si quieres cambiar la API:
+Si necesitas cambiar la API:
 ```powershell
 Copy-Item .env.example .env
 # editar VITE_API_BASE
 npm run dev
 ```
 
-Frontend en:
-- `http://localhost:5173`
-
-## 3) Extensión (Chrome/Opera)
-1. Abre `chrome://extensions` o `opera://extensions`
-2. Activa **Developer mode**
-3. Pulsa **Load unpacked**
+### 3) Extensión
+1. Abre `chrome://extensions` u `opera://extensions`
+2. Activa `Developer mode`
+3. Pulsa `Load unpacked`
 4. Selecciona la carpeta `extension/`
-5. Si cambias código: pulsa **Reload** en la extensión
 
-Config centralizada de la extensión:
-- archivo: `extension/config.js`
-- claves:
-  - `API_BASE_URL`
-  - `GEO_IP_URL`
-  - `WEB_APP_URL`
-  - `ACTIVE_ENV` (`local` o `production`)
+Configuración central: `extension/config.js`
+- `API_BASE_URL`
+- `WEB_APP_URL`
+- `GEO_IP_URL`
+- `ACTIVE_ENV` (`local` / `production`)
 
-## Flujo mínimo de prueba
-1. Arranca backend
-2. Arranca frontend
+## Flujo de prueba recomendado
+1. Inicia backend
+2. Inicia frontend
 3. Carga la extensión
-4. Regístrate / login
-5. Guarda contenido desde web/YouTube con la extensión
-6. Revisa en frontend: `Principal`, `Novedades`, `Prioridad`, `Mapa`, `Ciudades`
+4. Regístrate o inicia sesión
+5. Guarda contenido desde web/YouTube
+6. Verifica en vistas: `Principal`, `Novedades`, `Prioridad`, `Mapa`, `Ciudades`, `Merge`
 
-## Problemas comunes
-- Error `vite is not recognized`:
-  - Ejecuta `npm install` dentro de `frontend/`
+## Variables importantes (backend/.env)
+- `DATABASE_URL`
+- `CORS_ORIGINS`
+- `JWT_SECRET_KEY`
+- `GROQ_API_KEY` (opcional, clasificación LLM)
+- `ALLOW_INSECURE_SSL_FETCH` (solo para entornos controlados)
 
-- Error `no such column: inboxitem.is_pinned`:
-  - Ejecuta `alembic upgrade head` en `backend/`
+## Despliegue
+- App web (producción): `https://remit.mintos.space/`
+- Guía de stack Docker/Portainer: [deploy/README.md](deploy/README.md)
 
-- CORS desde frontend/extensión:
-  - Revisa `CORS_ORIGINS` en `backend/.env`
+## Documentación por módulo
+- Backend: [backend/README.md](backend/README.md)
+- Frontend: [frontend/README.md](frontend/README.md)
+- Deploy: [deploy/README.md](deploy/README.md)

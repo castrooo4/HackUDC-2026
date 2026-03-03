@@ -1,5 +1,7 @@
 import json
+import ipaddress
 import re
+import socket
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import fitz
@@ -20,8 +22,8 @@ from app.utils.preview import (
 
 
 class InboxIngestionService:
-    def __init__(self, timeout_seconds: int = 8):
-        self.timeout_seconds = timeout_seconds
+    def __init__(self, timeout_seconds: float | None = None):
+        self.timeout_seconds = timeout_seconds or settings.INGEST_TIMEOUT_SECONDS
 
     def process(self, payload: InboxCreate) -> IngestionResult:
         if payload.item_type == InboxItemType.TEXT:
@@ -58,14 +60,14 @@ class InboxIngestionService:
 
         try:
             oembed_url = f"https://www.youtube.com/oembed?url={url}&format=json"
-            response = requests.get(oembed_url, timeout=self.timeout_seconds)
+            response = self._safe_get(oembed_url)
             response.raise_for_status()
             data = response.json()
             title = title or truncate_title(data.get("title", ""))
             thumbnail_url = data.get("thumbnail_url")
             metadata["author_name"] = data.get("author_name")
             if thumbnail_url:
-                thumb_response = requests.get(thumbnail_url, timeout=self.timeout_seconds)
+                thumb_response = self._safe_get(thumbnail_url)
                 thumb_response.raise_for_status()
                 optimized = optimize_image_to_preview(
                     thumb_response.content,
@@ -95,7 +97,7 @@ class InboxIngestionService:
 
         if not thumbnail_data_url and page_meta.get("thumbnail_url"):
             try:
-                thumb_response = requests.get(str(page_meta["thumbnail_url"]), timeout=self.timeout_seconds)
+                thumb_response = self._safe_get(str(page_meta["thumbnail_url"]))
                 thumb_response.raise_for_status()
                 optimized = optimize_image_to_preview(
                     thumb_response.content,
@@ -209,7 +211,7 @@ class InboxIngestionService:
         metadata: dict = {"preview_kind": "web"}
 
         try:
-            response = requests.get(url, timeout=self.timeout_seconds)
+            response = self._safe_get(url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
@@ -236,7 +238,7 @@ class InboxIngestionService:
 
             favicon_url = self._extract_favicon_url(url, soup)
             if favicon_url:
-                icon_response = requests.get(favicon_url, timeout=self.timeout_seconds)
+                icon_response = self._safe_get(favicon_url)
                 if icon_response.ok and icon_response.content:
                     optimized_icon = optimize_image_to_preview(
                         icon_response.content,
@@ -279,6 +281,7 @@ class InboxIngestionService:
         return payload.mime_type, b""
 
     def _safe_get(self, url: str) -> requests.Response:
+        self._validate_remote_url(url)
         try:
             return requests.get(url, timeout=self.timeout_seconds)
         except requests.exceptions.SSLError:
@@ -286,6 +289,62 @@ class InboxIngestionService:
                 raise
             # Optional fallback for hosts with broken certificate chains.
             return requests.get(url, timeout=self.timeout_seconds, verify=False)
+
+    def _validate_remote_url(self, url: str) -> None:
+        parsed = urlparse((url or "").strip())
+        if parsed.scheme not in {"http", "https"}:
+            raise ValueError("Solo se permiten URLs http/https")
+        if not parsed.netloc:
+            raise ValueError("URL invalida")
+
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValueError("URL invalida")
+
+        # Mitiga SSRF: no permitir destinos locales o redes privadas.
+        host_lower = hostname.lower()
+        blocked_hosts = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+        if host_lower in blocked_hosts or host_lower.endswith(".localhost"):
+            raise ValueError("No se permiten destinos locales")
+
+        if self._is_private_or_loopback_ip(hostname):
+            raise ValueError("No se permiten destinos privados")
+
+    def _is_private_or_loopback_ip(self, hostname: str) -> bool:
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_multicast
+                or ip.is_unspecified
+                or ip.is_reserved
+            )
+        except ValueError:
+            pass
+
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+        except socket.gaierror:
+            return False
+
+        for _, _, _, _, sockaddr in addr_info:
+            ip_text = sockaddr[0]
+            try:
+                ip = ipaddress.ip_address(ip_text)
+            except ValueError:
+                continue
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_multicast
+                or ip.is_unspecified
+                or ip.is_reserved
+            ):
+                return True
+        return False
 
     def _extract_youtube_video_id(self, url: str) -> str | None:
         parsed = urlparse(url)
@@ -308,7 +367,7 @@ class InboxIngestionService:
     def _extract_youtube_page_metadata(self, watch_url: str) -> dict:
         result: dict = {}
         try:
-            response = requests.get(watch_url, timeout=self.timeout_seconds)
+            response = self._safe_get(watch_url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "html.parser")
 
@@ -380,12 +439,6 @@ class InboxIngestionService:
                     return found
         return None
 
-    def _compact_text(self, value: str, max_len: int) -> str:
-        cleaned = re.sub(r"\s+", " ", value).strip()
-        if len(cleaned) <= max_len:
-            return cleaned
-        return cleaned[: max_len - 3].rstrip() + "..."
-
     def _extract_favicon_url(self, page_url: str, soup: BeautifulSoup) -> str | None:
         for rel in ("icon", "shortcut icon", "apple-touch-icon"):
             tag = soup.find("link", rel=lambda value: value and rel in value.lower())
@@ -396,7 +449,7 @@ class InboxIngestionService:
     def _download_favicon_fallback(self, page_url: str) -> str | None:
         try:
             fallback_url = urljoin(page_url, "/favicon.ico")
-            response = requests.get(fallback_url, timeout=self.timeout_seconds)
+            response = self._safe_get(fallback_url)
             if response.ok and response.content:
                 optimized_icon = optimize_image_to_preview(
                     response.content,

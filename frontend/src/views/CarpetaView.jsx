@@ -2,7 +2,7 @@
 import { useParams } from "react-router-dom";
 import { Folder } from "lucide-react";
 
-import { getOrganizedInbox, getDirectoriesTree, updateInboxItem } from "../api/inbox";
+import { listOrganizedInbox, getDirectoriesTree, updateInboxItem } from "../api/inbox";
 import CardGrid from "../components/CardGrid";
 import InboxFilters from "../components/InboxFilters";
 import { filterAndSortInboxItems } from "../utils/inboxFilters";
@@ -25,7 +25,7 @@ export default function CarpetaView({ onOpenDetail, onDeleteItem }) {
     async function loadData() {
       setLoading(true);
       try {
-        const [dirsData, itemsData] = await Promise.all([getDirectoriesTree(), getOrganizedInbox()]);
+        const [dirsData, itemsData] = await Promise.all([getDirectoriesTree(), listOrganizedInbox()]);
 
         let foundName = `Carpeta ${folderId}`;
         const searchFolder = (folders) => {
@@ -63,17 +63,14 @@ export default function CarpetaView({ onOpenDetail, onDeleteItem }) {
   async function handleTogglePin(item) {
     const newPinnedState = !item.is_pinned;
 
-    // Actualización optimista: cambiamos el estado en la interfaz inmediatamente
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, is_pinned: newPinnedState } : i))
     );
 
     try {
-      // Intentamos guardar el cambio en el servidor
       await updateInboxItem(item.id, { is_pinned: newPinnedState });
     } catch (error) {
       console.error("Error al anclar:", error);
-      // Si falla, revertimos el cambio en la interfaz
       setItems((prev) =>
         prev.map((i) => (i.id === item.id ? { ...i, is_pinned: !newPinnedState } : i))
       );

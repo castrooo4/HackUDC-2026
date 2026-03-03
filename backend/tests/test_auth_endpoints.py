@@ -25,6 +25,8 @@ def test_register_user_duplicate_email(client):
     assert first.status_code == 201
     assert second.status_code == 409
     assert second.json()["detail"] == "El email ya esta registrado"
+    assert second.json()["message"] == "El email ya esta registrado"
+    assert second.json()["code"] == "CONFLICT"
 
 
 def test_login_success(client):
@@ -87,6 +89,8 @@ def test_login_wrong_password(client):
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Credenciales invalidas"
+    assert response.json()["message"] == "Credenciales invalidas"
+    assert response.json()["code"] == "UNAUTHORIZED"
 
 
 def test_login_unknown_user(client):
@@ -96,6 +100,49 @@ def test_login_unknown_user(client):
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "Credenciales invalidas"
+    assert response.json()["message"] == "Credenciales invalidas"
+    assert response.json()["code"] == "UNAUTHORIZED"
+
+
+def test_register_validation_payload_shape(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "invalid-email", "password": "123", "full_name": "User"},
+    )
+    body = response.json()
+
+    assert response.status_code == 422
+    assert body["code"] == "VALIDATION_ERROR"
+    assert body["message"] == "Datos de entrada invalidos"
+    assert isinstance(body["detail"], list)
+    assert isinstance(body["errors"], list)
+    assert body["errors"][0]["field"].startswith("body.")
+
+
+def test_register_short_password_returns_clear_message(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "shortpass@example.com", "password": "12345", "full_name": "User"},
+    )
+    body = response.json()
+
+    assert response.status_code == 422
+    assert body["code"] == "VALIDATION_ERROR"
+    assert "contrasena" in body["message"].lower() or any(
+        "contrasena" in str(err.get("message", "")).lower() for err in body.get("errors", [])
+    )
+
+
+def test_register_invalid_email_returns_clear_message(client):
+    response = client.post(
+        "/auth/register",
+        json={"email": "bad-email", "password": "StrongPass123", "full_name": "User"},
+    )
+    body = response.json()
+
+    assert response.status_code == 422
+    assert body["code"] == "VALIDATION_ERROR"
+    assert any("email valido" in str(err.get("message", "")).lower() for err in body.get("errors", []))
 
 
 def test_register_creates_default_directories(client):

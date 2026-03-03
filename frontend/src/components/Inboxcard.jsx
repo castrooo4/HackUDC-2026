@@ -1,10 +1,8 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-// 1. Añade "Pin" aquí
 import { FileJson, FileText, Globe, ImageIcon, X, Pin } from "lucide-react";
 
-// 2. Asegúrate de recibir "onPin" en los props
 export default function InboxCard({ item, onOpen, onDelete, onPin }) {
   const [isHovered, setIsHovered] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -20,7 +18,6 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
   };
 
   const renderMedia = () => {
-    // ... (el código de renderMedia que ya tenías) ...
     if (item.item_type === "YOUTUBE" && item.url) {
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = item.url.match(regExp);
@@ -72,16 +69,14 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Botón de Eliminar */}
       {onDelete ? (
         <button
           type="button"
           style={{
             ...deleteBtnStyle,
-            // En móvil ( < 768px) siempre visible con opacidad 0.8, en escritorio solo al hacer hover
             opacity: window.innerWidth < 768 ? 0.8 : (isHovered ? 1 : 0),
             transform: window.innerWidth < 768 ? "translateY(0)" : (isHovered ? "translateY(0)" : "translateY(-4px)"),
-            pointerEvents: "auto", // Siempre clickeable
+            pointerEvents: "auto",
           }}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -93,7 +88,6 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
         </button>
       ) : null}
 
-      {/* 3. BOTÓN DE LA CHINCHETA (Añade esto aquí) */}
       {onPin ? (
         <button
           type="button"
@@ -129,7 +123,6 @@ export default function InboxCard({ item, onOpen, onDelete, onPin }) {
   );
 }
 
-// 4. Añade este estilo al final del archivo
 const pinBtnStyle = {
   position: "absolute",
   top: "12px",
@@ -146,7 +139,6 @@ const pinBtnStyle = {
   transition: "all 0.2s ease",
 };
 
-// ... (el resto de estilos que ya tenías) ...
 const cardStyle = {
   position: "relative",
   breakInside: "avoid",
@@ -233,7 +225,6 @@ const tagStyle = {
   alignSelf: "flex-start",
   border: "1px solid rgba(70, 211, 126, 0.2)",
 };
-
 
 const warnTagStyle = {
   fontSize: "0.7rem",

@@ -9,6 +9,8 @@ const VIEWS = {
   AUTH: "authView",
   MAIN: "mainView",
 };
+const PASSWORD_MIN_LENGTH = 8;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function el(id) {
   return document.getElementById(id);
@@ -31,6 +33,36 @@ function setStatus(message) {
   if (status) status.textContent = message;
 }
 
+function parseApiError(data, fallbackMessage) {
+  if (typeof data?.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+  if (typeof data?.detail === "string" && data.detail.trim()) {
+    return data.detail.trim();
+  }
+  if (Array.isArray(data?.errors) && data.errors.length > 0) {
+    const firstError = data.errors[0];
+    if (typeof firstError?.message === "string" && firstError.message.trim()) {
+      return firstError.message.trim();
+    }
+  }
+  if (Array.isArray(data?.detail) && data.detail.length > 0) {
+    const first = data.detail[0];
+    if (typeof first?.msg === "string" && first.msg.trim()) {
+      return first.msg.trim();
+    }
+  }
+  return fallbackMessage;
+}
+
+async function readJsonSafely(response) {
+  try {
+    return await response.json();
+  } catch (_error) {
+    return null;
+  }
+}
+
 function showView(viewId) {
   el(VIEWS.AUTH).classList.add("hidden");
   el(VIEWS.MAIN).classList.add("hidden");
@@ -39,11 +71,11 @@ function showView(viewId) {
 
 async function initializeView() {
   const data = await getStorage([STORAGE_KEYS.ACCESS_TOKEN, STORAGE_KEYS.USE_LOCATION]);
-  showView(data.access_token ? VIEWS.MAIN : VIEWS.AUTH);
+  showView(data[STORAGE_KEYS.ACCESS_TOKEN] ? VIEWS.MAIN : VIEWS.AUTH);
 
   const locationToggle = el("locationToggle");
   if (locationToggle) {
-    locationToggle.checked = Boolean(data.use_location);
+    locationToggle.checked = Boolean(data[STORAGE_KEYS.USE_LOCATION]);
   }
 }
 
@@ -67,6 +99,10 @@ async function login() {
     setStatus("Email y contrasena requeridos");
     return;
   }
+  if (!EMAIL_REGEX.test(email)) {
+    setStatus("Introduce un email valido");
+    return;
+  }
 
   try {
     const response = await fetch(`${API_URL}/auth/login`, {
@@ -75,9 +111,9 @@ async function login() {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await response.json();
+    const data = await readJsonSafely(response);
     if (!response.ok || !data?.access_token) {
-      setStatus("Credenciales incorrectas");
+      setStatus(parseApiError(data, "Credenciales incorrectas"));
       return;
     }
 
@@ -92,10 +128,22 @@ async function login() {
 async function register() {
   const email = el("regEmail").value.trim();
   const password = el("regPass").value.trim();
-  const full_name = el("regName").value.trim();
+  const fullName = el("regName").value.trim();
 
-  if (!email || !password || !full_name) {
+  if (!email || !password || !fullName) {
     setStatus("Todos los campos son obligatorios");
+    return;
+  }
+  if (!EMAIL_REGEX.test(email)) {
+    setStatus("Introduce un email valido");
+    return;
+  }
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    setStatus(`La contrasena debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`);
+    return;
+  }
+  if (fullName.length < 2) {
+    setStatus("El nombre debe tener al menos 2 caracteres");
     return;
   }
 
@@ -103,16 +151,12 @@ async function register() {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, full_name }),
+      body: JSON.stringify({ email, password, full_name: fullName }),
     });
 
-    const data = await response.json();
+    const data = await readJsonSafely(response);
     if (!response.ok) {
-      if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
-        setStatus(`Error: ${data.detail[0].msg}`);
-      } else {
-        setStatus(data?.detail || "Error al registrar");
-      }
+      setStatus(parseApiError(data, "Error al registrar"));
       return;
     }
 

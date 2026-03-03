@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sparkles, Loader2, Folder, CheckCircle2, PartyPopper, Brain, PlusCircle } from "lucide-react";
 
-import { getPendingInbox, getDirectoriesTree, confirmOrganization } from "../api/inbox";
+import { listProcessedInbox, getDirectoriesTree, confirmOrganization } from "../api/inbox";
 
 export default function Novedades({ onOpenDetail }) {
   const [pendingItems, setPendingItems] = useState([]);
@@ -48,7 +48,7 @@ export default function Novedades({ onOpenDetail }) {
     setLoading(true);
     setError("");
     try {
-      const [itemsData, dirsData] = await Promise.all([getPendingInbox(), getDirectoriesTree()]);
+      const [itemsData, dirsData] = await Promise.all([listProcessedInbox(), getDirectoriesTree()]);
       setPendingItems(Array.isArray(itemsData) ? itemsData : []);
       setDirectories(dirsData?.roots || []);
     } catch (err) {

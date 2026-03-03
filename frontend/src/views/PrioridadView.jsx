@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { AlertCircle, Loader2, MapPin, Target } from "lucide-react";
 
 import { getTopReviewInbox } from "../api/inbox";
+import { ENV } from "../config/env";
 
 export default function PrioridadView({ onOpenDetail }) {
   const [rows, setRows] = useState([]);
@@ -274,7 +275,7 @@ function getCurrentLocationSafe() {
       () => resolve(null),
       {
         enableHighAccuracy: true,
-        timeout: 8000,
+        timeout: ENV.GEOLOCATION_TIMEOUT_MS,
         maximumAge: 120000,
       },
     );

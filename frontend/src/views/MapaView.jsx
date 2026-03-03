@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import { MapPinned } from "lucide-react";
+import { ENV } from "../config/env";
 
 const DEFAULT_CENTER = [40.4168, -3.7038];
 const DEFAULT_ZOOM = 5;
@@ -64,8 +65,8 @@ export default function MapaView({ items = [], onOpenDetail }) {
             scrollWheelZoom
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={ENV.MAP_TILE_ATTRIBUTION}
+              url={ENV.MAP_TILE_URL}
             />
 
             {locationItems.map((item) => (

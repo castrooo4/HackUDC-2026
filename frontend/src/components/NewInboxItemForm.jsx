@@ -1,28 +1,29 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import { ENV } from "../config/env";
 
-// 1. Añadimos la función para capturar el GPS
-function obtenerUbicacion() {
+function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("El navegador no soporta geolocalización."));
+      reject(new Error("El navegador no soporta geolocalizacion."));
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
-      (posicion) => {
+      (position) => {
         resolve({
-          lat: posicion.coords.latitude,
-          lon: posicion.coords.longitude
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
         });
       },
       (error) => reject(error),
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: ENV.GEOLOCATION_TIMEOUT_MS, maximumAge: 0 }
     );
   });
 }
 
 export default function NewInboxItemForm({ onCreate }) {
   const [title, setTitle] = useState("");
-  const [source, setSource] = useState("web"); // Cambiado por defecto a 'web'
+  const [source, setSource] = useState("web");
   const [content, setContent] = useState("");
   const [itemType, setItemType] = useState("TEXT");
   const [loading, setLoading] = useState(false);
@@ -40,12 +41,12 @@ export default function NewInboxItemForm({ onCreate }) {
     } else if (rawContent.startsWith("data:application/pdf")) {
       detectedType = "PDF";
     } else if (rawContent.startsWith("http")) {
-      const url = rawContent.toLowerCase();
-      if (url.includes("youtube.com/") || url.includes("youtu.be/")) {
+      const normalizedUrl = rawContent.toLowerCase();
+      if (normalizedUrl.includes("youtube.com/") || normalizedUrl.includes("youtu.be/")) {
         detectedType = "YOUTUBE";
-      } else if (url.match(/\.(jpeg|jpg|gif|png|webp)$/)) {
+      } else if (normalizedUrl.match(/\.(jpeg|jpg|gif|png|webp)$/)) {
         detectedType = "IMAGE";
-      } else if (url.endsWith(".pdf")) {
+      } else if (normalizedUrl.endsWith(".pdf")) {
         detectedType = "PDF";
       } else {
         detectedType = "WEB";
@@ -72,13 +73,12 @@ export default function NewInboxItemForm({ onCreate }) {
       payload.url = rawContent;
     }
 
-    // 2. Intentamos capturar la ubicación antes de enviar el payload
     try {
-      const ubicacion = await obtenerUbicacion();
-      payload.location_lat = ubicacion.lat;
-      payload.location_lon = ubicacion.lon;
+      const location = await getCurrentLocation();
+      payload.location_lat = location.lat;
+      payload.location_lon = location.lon;
     } catch (error) {
-      console.warn("No se pudo obtener la ubicación. Se enviará sin coordenadas.", error);
+      console.warn("No se pudo obtener ubicacion. Se enviara sin coordenadas.", error);
     }
 
     try {

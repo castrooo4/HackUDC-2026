@@ -62,5 +62,4 @@ class InboxItem(SQLModel, table=True):
     )
     status: InboxStatus = Field(default=InboxStatus.PENDING, nullable=False)
 
-    # NUEVO CAMPO AÑADIDO:
     is_pinned: bool = Field(default=False, nullable=False)

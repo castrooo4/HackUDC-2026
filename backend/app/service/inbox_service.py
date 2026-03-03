@@ -30,6 +30,7 @@ from app.service.directory_service import DirectoryService
 from app.service.inbox_ingest_service import InboxIngestionService
 from app.service.location_service import LocationService
 from app.utils.geo import distance_km, validate_location_pair
+from app.config import settings
 
 
 class InboxService:
@@ -589,8 +590,7 @@ class InboxService:
             return
 
         def _runner():
-            delays = (3, 8, 20)
-            for delay in delays:
+            for delay in self._ingest_retry_delays():
                 time.sleep(delay)
                 with Session(engine) as retry_session:
                     item = retry_session.get(InboxItem, item_id)
@@ -622,6 +622,21 @@ class InboxService:
                         retry_session.commit()
 
         threading.Thread(target=_runner, daemon=True).start()
+
+    def _ingest_retry_delays(self) -> tuple[float, ...]:
+        raw = settings.INGEST_RETRY_DELAYS_SECONDS
+        parts = [part.strip() for part in raw.split(",") if part.strip()]
+        parsed: list[float] = []
+        for part in parts:
+            try:
+                value = float(part)
+                if value > 0:
+                    parsed.append(value)
+            except ValueError:
+                continue
+        if parsed:
+            return tuple(parsed)
+        return (3.0, 8.0, 20.0)
 
     def _find_duplicate(
         self,
